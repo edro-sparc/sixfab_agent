@@ -2,7 +2,7 @@ import paho.mqtt.client as mqtt
 import json
 from .modules import *
 from threading import Thread
-from pmsapi import SixfabPMS
+from .pmsapi import SixfabPMS
 
 MQTT_HOST = "power.sixfab.com"
 MQTT_PORT = 1883
