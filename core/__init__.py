@@ -1,6 +1,8 @@
 import paho.mqtt.client as mqtt
 import json
 from .modules import *
+from threading import Thread
+from pmsapi import SixfabPMS
 
 MQTT_HOST = "beta.sixfab.com"
 MQTT_PORT = 1883
@@ -9,9 +11,12 @@ COMMANDS = {"healthcheck": health_check}
 
 
 class Agent(object):
-    def __init__(self, token: str, interval: int = 10, lwt: bool = True):
+    def __init__(self, token: str, interval: int = 10, lwt: bool = True, enable_feeder: bool = True):
         client = mqtt.Client()
         self.client = client
+        self.token = token
+        self.interval = interval
+        self.PMSAPI = SixfabPMS()
 
         client.username_pw_set(token, token)
         client.user_data_set(token)
@@ -26,7 +31,21 @@ class Agent(object):
         client.on_log = self.__on_log
 
     def loop(self):
-        self.client.loop_forever()
+        listener = Thread(target=self.client.loop_forever)
+        feeder = Thread(target=self.feeder)
+
+        listener.start()
+        feeder.start()
+
+    def feeder(self):
+        import time
+        import random
+        while True:
+            self.client.publish(
+                "/device/{token}/feed".format(token=self.token),
+                json.dumps(read_data(self.PMSAPI))
+            )
+            time.sleep(self.interval)
 
     def __on_message(self, client, userdata, msg):
         """
