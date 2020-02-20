@@ -4,7 +4,7 @@ from .modules import *
 from threading import Thread
 from pmsapi import SixfabPMS
 
-MQTT_HOST = "beta.sixfab.com"
+MQTT_HOST = "power.sixfab.com"
 MQTT_PORT = 1883
 
 COMMANDS = {"healthcheck": health_check}
