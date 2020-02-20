@@ -3,7 +3,7 @@
 import smbus2
 import RPi.GPIO as GPIO
 import time
-from .crc16 import CRC16
+from crc16 import CRC16
 import struct
 
 bus = smbus2.SMBus(1)
@@ -510,7 +510,6 @@ class SixfabPMS:
 		return result
 
 
-
 	# -----------------------------------------------------------
 	# Function for getting RGB animation
 	# Parameter : None
@@ -524,5 +523,3 @@ class SixfabPMS:
 
 		animation = raw[PROTOCOL_HEADER_SIZE : 3]
 		return animation
-
-
