@@ -3,7 +3,7 @@
 import smbus2
 import RPi.GPIO as GPIO
 import time
-from crc16 import CRC16
+from .crc16 import CRC16
 import struct
 
 bus = smbus2.SMBus(1)
