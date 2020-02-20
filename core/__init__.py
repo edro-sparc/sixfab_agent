@@ -22,7 +22,7 @@ class Agent(object):
         client.user_data_set(token)
 
         if lwt:
-           client.will_set("/device/{}/status".format(token), "offline", retain=True)
+           client.will_set("/device/{}/status".format(token), json.dumps({"connected": False}), retain=True)
     
         client.connect(MQTT_HOST, MQTT_PORT, 50)
         client.on_connect = self.__on_connect
@@ -100,7 +100,7 @@ class Agent(object):
         self.client.subscribe("/device/{userdata}/directives".format(userdata=userdata))
         self.client.publish(
             "/device/{userdata}/status".format(userdata=userdata),
-            "online",
+            json.dumps({"connected": True}),
             retain=True,
         )
 
