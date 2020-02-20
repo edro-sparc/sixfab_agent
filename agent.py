@@ -8,6 +8,6 @@ if __name__ == "__main__":
  
     agent = Agent(
         configs["TOKEN"],
-        interval=configs["INTERVAL"],
+        interval=int(configs["INTERVAL"]),
     )
     agent.loop()
