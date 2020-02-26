@@ -1,17 +1,25 @@
-import paho.mqtt.client as mqtt
 import json
-from .modules import *
 from threading import Thread
+
+import paho.mqtt.client as mqtt
 from pms_api import SixfabPMS
+
+from .modules import *
 
 MQTT_HOST = "power.sixfab.com"
 MQTT_PORT = 1883
 
-COMMANDS = {"healthcheck": health_check}
+COMMANDS = {"healthcheck": health_check, "configurations": set_configurations}
 
 
 class Agent(object):
-    def __init__(self, token: str, interval: int = 10, lwt: bool = True, enable_feeder: bool = True):
+    def __init__(
+        self,
+        token: str,
+        interval: int = 10,
+        lwt: bool = True,
+        enable_feeder: bool = True,
+    ):
         client = mqtt.Client()
         self.client = client
         self.token = token
@@ -22,8 +30,12 @@ class Agent(object):
         client.user_data_set(token)
 
         if lwt:
-           client.will_set("/device/{}/status".format(token), json.dumps({"connected": False}), retain=True)
-    
+            client.will_set(
+                "/device/{}/status".format(token),
+                json.dumps({"connected": False}),
+                retain=True
+            )
+
         client.connect(MQTT_HOST, MQTT_PORT, 50)
         client.on_connect = self.__on_connect
         client.on_message = self.__on_message
@@ -40,46 +52,29 @@ class Agent(object):
     def feeder(self):
         import time
         import random
+
         while True:
             try:
                 self.client.publish(
                     "/device/{token}/feed".format(token=self.token),
-                    json.dumps(read_data(self.PMSAPI))
+                    json.dumps(read_data(self.PMSAPI)),
                 )
                 time.sleep(self.interval)
             except:
                 time.sleep(1)
 
-
     def __on_message(self, client, userdata, msg):
-        """
-        Triggering on mqtt message
-    
-        Request Format:
-            {
-                "command": "",
-                "commandID": "", !!! OPTIONAL
-                "data": {}, !!! OPTIONAL
-            }
-
-
-        Response Format:
-            {
-                "command": "",
-                "commandID": "", !!! OPTIONAL
-                "response": {}, !!! OPTIONAL
-            }
-        """
         message = json.loads(msg.payload.decode())
         command = message.get("command", None)
         commandID = message.get("commandID", None)
+        command_data = message.get("data", {})
 
         if COMMANDS[command]:
             response = json.dumps(
                 {
                     "command": command,
                     "commandID": commandID,
-                    "response": COMMANDS[command](),
+                    "response": COMMANDS[command](self.PMSAPI, command_data),
                 }
             )
 
