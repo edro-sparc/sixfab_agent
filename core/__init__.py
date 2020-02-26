@@ -41,11 +41,15 @@ class Agent(object):
         import time
         import random
         while True:
-            self.client.publish(
-                "/device/{token}/feed".format(token=self.token),
-                json.dumps(read_data(self.PMSAPI))
-            )
-            time.sleep(self.interval)
+            try:
+                self.client.publish(
+                    "/device/{token}/feed".format(token=self.token),
+                    json.dumps(read_data(self.PMSAPI))
+                )
+                time.sleep(self.interval)
+            except:
+                time.sleep(1)
+
 
     def __on_message(self, client, userdata, msg):
         """
