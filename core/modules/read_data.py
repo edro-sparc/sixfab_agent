@@ -23,7 +23,7 @@ def read_data(api):
 
     return {
         "charge_status": api.getBatteryLevel(),
-        "battery_health": api.getBatteryHealt(),
+        "battery_health": api.getBatteryHealth(),
         "fanspeed": api.getFanSpeed(),
         "fan_health": fan_health(),
         "working_status": working_mode(),
