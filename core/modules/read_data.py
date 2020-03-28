@@ -1,13 +1,16 @@
+import time
+
 def read_data(api):
     def fan_health():
         response = api.getFanHealth()
-        responses = {1: True, 2: False}
+        responses = {0: None, 1: True, 2: False}
 
         return responses[response]
 
     def working_mode():
         response = api.getWorkingMode()
         responses = {
+            0: "n/a",
             1: "Charging",
             2: "Fully Charged - Adapter Powered",
             3: "Battery Powered",
@@ -17,11 +20,12 @@ def read_data(api):
 
     def watchdog_signal():
         response = api.askWatchdogAlarm()
-        responses = {1: True, 2: False}
+        responses = {0: None, 1: True, 2: False}
 
         return responses[response]
 
     return {
+        "timestamp": time.time(),
         "charge_status": api.getBatteryLevel(),
         "battery_health": api.getBatteryHealth(),
         "fanspeed": api.getFanSpeed(),
