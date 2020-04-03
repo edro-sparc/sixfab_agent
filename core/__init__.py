@@ -16,6 +16,7 @@ class Agent(object):
     def __init__(
         self,
         token: str,
+        version: str,
         interval: int = 10,
         lwt: bool = True,
         enable_feeder: bool = True,
@@ -23,6 +24,7 @@ class Agent(object):
         client = mqtt.Client()
         self.client = client
         self.token = token
+        self.version = version
         self.interval = interval
         self.PMSAPI = SixfabPMS()
 
@@ -57,7 +59,7 @@ class Agent(object):
             try:
                 self.client.publish(
                     "/device/{token}/feed".format(token=self.token),
-                    json.dumps(read_data(self.PMSAPI)),
+                    json.dumps(read_data(self.PMSAPI, agent_version=self.version)),
                 )
                 time.sleep(self.interval)
             except:

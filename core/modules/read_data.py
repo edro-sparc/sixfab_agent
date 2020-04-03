@@ -1,6 +1,6 @@
 import time
 
-def read_data(api):
+def read_data(api, **kwargs):
     def fan_health():
         response = api.getFanHealth()
         responses = {0: None, 1: True, 2: False}
@@ -52,4 +52,8 @@ def read_data(api):
                 "power": api.getBatteryPower(),
             },
         },
+        "versions": {
+            "firmware": api.getFirmwareVer().decode().replace("v", ""),
+            "agent": kwargs.get("agent_version", "0.0.0")
+        }
     }
