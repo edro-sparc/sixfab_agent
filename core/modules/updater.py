@@ -81,7 +81,7 @@ def update_agent(**kwargs):
 
     os.system("cd /opt/sixfab/pms-agent && sudo git reset --hard HEAD && sudo git pull")
 
-    send_status("restart_service")
+    send_status("restart")
 
     os.system("sudo systemctl restart pms_agent")
 
