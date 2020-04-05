@@ -1,4 +1,6 @@
 import time
+import re
+
 
 def read_data(api, **kwargs):
     def fan_health():
@@ -23,6 +25,16 @@ def read_data(api, **kwargs):
         responses = {0: None, 1: True, 2: False}
 
         return responses[response]
+
+    def firmware_version():
+        get_from_hat = api.getFirmwareVer()
+
+        if isinstance(get_from_hat, str):
+            return re.search("v([0-9]*.[0-9]*.[0-9]*)", get_from_hat)[1]
+        elif isinstance(get_from_hat, bytearray) or isinstance(get_from_hat, bytes):
+            return get_from_hat.decode().replace("v", "")
+        else:
+            return '0.0.0'
 
     return {
         "timestamp": time.time(),
@@ -53,7 +65,7 @@ def read_data(api, **kwargs):
             },
         },
         "versions": {
-            "firmware": api.getFirmwareVer().decode().replace("v", ""),
+            "firmware": firmware_version(),
             "agent": kwargs.get("agent_version", "0.0.0")
         }
     }
