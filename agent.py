@@ -1,7 +1,7 @@
 from core import Agent
 from configparser import ConfigParser
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 environments = ConfigParser()
 environments.read("/opt/sixfab/.env")
