@@ -1,3 +1,4 @@
+import time
 import json
 from threading import Thread
 
@@ -16,17 +17,17 @@ class Agent(object):
     def __init__(
         self,
         token: str,
-        version: str,
-        interval: int = 10,
+        configs: dict,
         lwt: bool = True,
         enable_feeder: bool = True,
     ):
         client = mqtt.Client()
         self.client = client
         self.token = token
-        self.version = version
-        self.interval = interval
+        self.configs = configs
         self.PMSAPI = SixfabPMS()
+
+        self.lock_feeder = False
 
         client.username_pw_set(token, token)
         client.user_data_set(token)
@@ -44,6 +45,9 @@ class Agent(object):
         client.on_disconnect = self.__on_disconnect
         client.on_log = self.__on_log
 
+    def reinit_api(self):
+        self.PMSAPI = SixfabPMS()
+
     def loop(self):
         listener = Thread(target=self.client.loop_forever)
         feeder = Thread(target=self.feeder)
@@ -52,18 +56,34 @@ class Agent(object):
         feeder.start()
 
     def feeder(self):
-        import time
-        import random
 
         while True:
+            if self.lock_feeder:
+                time.sleep(.5)
+                continue
+
             try:
                 self.client.publish(
                     "/device/{token}/feed".format(token=self.token),
-                    json.dumps(read_data(self.PMSAPI, agent_version=self.version)),
+                    json.dumps(read_data(self.PMSAPI, agent_version=self.configs["version"])),
                 )
-                time.sleep(self.interval)
+                time.sleep(self.configs["feeder_interval"])
             except:
                 time.sleep(1)
+
+    def _lock_feeder_for_firmware_update(self):
+        self.lock_feeder = not self.lock_feeder
+
+        update_firmware(
+            api=self.PMSAPI,
+            repository= self.configs["firmware_update_repository"],
+            mqtt_client=self.client,
+            lock_feeder=self.lock_feeder,
+            token=self.token
+        )
+
+        self.lock_feeder = False
+        
 
     def __on_message(self, client, userdata, msg):
         message = json.loads(msg.payload.decode())
@@ -71,7 +91,7 @@ class Agent(object):
         commandID = message.get("commandID", None)
         command_data = message.get("data", {})
 
-        if COMMANDS[command]:
+        if COMMANDS.get(command, False):
             response = json.dumps(
                 {
                     "command": command,
@@ -80,9 +100,25 @@ class Agent(object):
                 }
             )
 
-            client.publish(
+            self.client.publish(
                 "/device/{userdata}/hive".format(userdata=userdata), response
             )
+
+        if command.startswith('update_'):
+            update_type = command.split("_")[1]
+
+            if update_type == "firmware":
+                firmware_update_thread = Thread(target=self._lock_feeder_for_firmware_update)
+                firmware_update_thread.start()
+                return
+
+            elif update_type == "agent":
+                agent_update_thread = Thread(target=update_agent, kwargs=dict(
+                    mqtt_client = self.client,
+                    token = self.token
+                ))
+                agent_update_thread.start()
+                return
 
         else:
             response = json.dumps(
