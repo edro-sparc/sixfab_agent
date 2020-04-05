@@ -104,6 +104,8 @@ class Agent(object):
                 "/device/{userdata}/hive".format(userdata=userdata), response
             )
 
+            return
+
         if command.startswith('update_'):
             update_type = command.split("_")[1]
 
