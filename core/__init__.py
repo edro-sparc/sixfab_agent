@@ -10,7 +10,7 @@ from .modules import *
 MQTT_HOST = "power.sixfab.com"
 MQTT_PORT = 1883
 
-COMMANDS = {"healthcheck": health_check, "configurations": set_configurations, "ping": lambda api, data: "pong"}
+COMMANDS = {"healthcheck": health_check, "configurations": set_configurations, "ping": lambda api, data: "update test"}
 
 
 class Agent(object):
