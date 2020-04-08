@@ -1,5 +1,7 @@
 from pms_api.definitions import Definition
 from pms_api.event import Event
+from pms_api import SixfabPMS
+import time
 
 MAP_BOOL = {True: 1, False: 2}
 
@@ -49,36 +51,81 @@ def get_until_done(function):
     time.sleep(0.5)
 
 
-def try_until_done(function, *args):
+def try_until_done(api, function, *args, **kwargs):
     while True:
         try:
-            resp = function(*args)
+            resp = getattr(api, function)(*args, **kwargs)
         except:
             resp = 0
 
         if resp == 1:
+            print("success for: ", function)
             return resp
+        elif resp == -2:
+            del api
+            api = SixfabPMS()
 
+
+        print("trying again for: ", function)
         time.sleep(0.5)
 
+def update_timezone(api, timezone):
+    """
+        timezone format: UTC[operator][offset]
+        example: UTC+9, UTC-3, UTC+6:45
+    """
+    operator, offset = timezone[3:4], timezone[4:]
 
-def set_configurations(pms, data):
-    try_until_done(pms.setWatchdogStatus, MAP_BOOL[data["watchdog_enabled"]])
+    if timezone == "default":
+        try_until_done(api, "setRtcTime", (int(time.time()) - time.timezone), timeout=100)
+        return
+
+    if ":" not in offset and offset == "0":
+        try_until_done(api, "setRtcTime", int(time.time()), timeout=100)
+        return
+
+    offset_to_calculate = 0
+
+    if ":" in offset:
+        hours, minutes = offset.split(":")
+
+        offset_to_calculate += int(hours) * 60 * 60
+        offset_to_calculate += int(minutes) * 60
+    
+    else:
+        offset_to_calculate += int(offset) * 60 * 60
+    
+    
+
+    if operator == "+":
+        epoch_to_set = int(time.time()) + offset_to_calculate
+    else:
+        epoch_to_set = int(time.time()) - offset_to_calculate
+
+
+    try_until_done(api, "setRtcTime", epoch_to_set, timeout=100)
+
+
+def set_configurations(api, data):
+    update_timezone(api, data["timezone"])
+
+    try_until_done(api, "setBatteryDesignCapacity", data["battery_capacity"])
+    try_until_done(api, "setWatchdogStatus", MAP_BOOL[data["watchdog_enabled"]])
 
     smart_cooling = data["smart_cooling"].split(",")
     smart_cooling = [int(value) for value in smart_cooling]
-    try_until_done(pms.setFanAutomation, smart_cooling[0], smart_cooling[1])
+    try_until_done(api, "setFanAutomation", smart_cooling[0], smart_cooling[1])
 
     battery_percentage = data["battery_percentage"].split(",")
     battery_percentage = [int(value) for value in battery_percentage]
-    try_until_done(pms.setSafeShutdownBatteryLevel, battery_percentage[0])
-    try_until_done(pms.setBatteryMaxChargeLevel, battery_percentage[1])
+    try_until_done(api, "setSafeShutdownBatteryLevel", battery_percentage[0])
+    try_until_done(api, "setBatteryMaxChargeLevel", battery_percentage[1])
 
     try_until_done(
-        pms.setRgbAnimation,
+        api, "setRgbAnimation",
         MAP_ANIMATIONS[data["led_animation"]],
         MAP_COLORS[data.get("led_color", "Red")],
-        MAP_SPEEDS[data.get("led_speed", "Normal")],
+        MAP_SPEEDS[data.get("led_speed", "Normal")]
     )
 
     # set scheduled events
@@ -88,7 +135,7 @@ def set_configurations(pms, data):
                 data["scheduled"].remove(event)
 
     cloud_event_ids = [event["_id"] for event in data["scheduled"]]
-    local_event_ids = get_until_done(pms.getScheduledEventIds)
+    local_event_ids = get_until_done(api.getScheduledEventIds)
 
     s = set(cloud_event_ids)
     ids_to_delete = [x for x in local_event_ids if x not in s]
@@ -97,7 +144,7 @@ def set_configurations(pms, data):
     ids_to_add = [x for x in cloud_event_ids if x not in s]
 
     for _id in ids_to_delete:
-        try_until_done(pms.removeScheduledEvent, _id)
+        try_until_done(api, "removeScheduledEvent", _id)
 
     for _id in ids_to_add:
         if f"event_{_id}" in data["ignored_fields"]:
@@ -132,7 +179,7 @@ def set_configurations(pms, data):
             event_to_save.day = days
             event_to_save.action = MAP_ACTIONS[event["action"]]
 
-            try_until_done(pms.createScheduledEventWithEvent, event_to_save)
+            try_until_done(api, "createScheduledEventWithEvent", event_to_save)
 
         elif event["event_type"] == "interval":
             event_to_save.id = _id
@@ -146,7 +193,7 @@ def set_configurations(pms, data):
                 else Definition.EVENT_REPEATED
             )
 
-            try_until_done(pms.createScheduledEventWithEvent, event_to_save)
+            try_until_done(api, "createScheduledEventWithEvent", event_to_save)
 
     return True
 
