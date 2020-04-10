@@ -1,16 +1,38 @@
+from pms_api import SixfabPMS
+from pms_api.exceptions import CRCCheckFailed
 import time
 import re
 
+def try_until_get(api, function):
+    while True:
+        try:
+            resp = getattr(api, function)()
+        except CRCCheckFailed:
+            print("[GETTER] crc check failed, reinitializing api")
+            del api
+            api = SixfabPMS()
+        except Exception as e:
+            print(e)
+            resp = None
+        else:
+            return resp
+            
+        print("trying again for: ", function)
+        time.sleep(0.5)
 
 def read_data(api, **kwargs):
+
+    # TODO api.softPowerOff()
+    # TODO api.softReboot()
+
     def fan_health():
-        response = api.getFanHealth()
+        response = try_until_get(api, "getFanHealth")
         responses = {0: None, 1: True, 2: False}
 
         return responses[response]
 
     def working_mode():
-        response = api.getWorkingMode()
+        response = try_until_get(api, "getWorkingMode")
         responses = {
             0: "n/a",
             1: "Charging",
@@ -21,13 +43,13 @@ def read_data(api, **kwargs):
         return responses[response]
 
     def watchdog_signal():
-        response = api.askWatchdogAlarm()
+        response = try_until_get(api, "askWatchdogAlarm")
         responses = {0: None, 1: True, 2: False}
 
         return responses[response]
 
     def firmware_version():
-        get_from_hat = api.getFirmwareVer()
+        get_from_hat = try_until_get(api, "getFirmwareVer")
 
         if isinstance(get_from_hat, str):
             return re.search("v([0-9]*.[0-9]*.[0-9]*)", get_from_hat)[1]
@@ -38,30 +60,30 @@ def read_data(api, **kwargs):
 
     return {
         "timestamp": time.time(),
-        "charge_status": api.getBatteryLevel(),
-        "battery_health": api.getBatteryHealth(),
-        "fanspeed": api.getFanSpeed(),
+        "charge_status": try_until_get(api, "getBatteryLevel"),
+        "battery_health": try_until_get(api, "getBatteryHealth"),
+        "fanspeed": try_until_get(api, "getFanSpeed"),
         "fan_health": fan_health(),
         "working_status": working_mode(),
         "watchdog_signal": watchdog_signal(),
         "stats": {
             "input": {
-                "temperature": api.getInputTemp(),
-                "voltage": api.getInputVoltage(),
-                "current": api.getInputCurrent(),
-                "power": api.getInputPower(),
+                "temperature": try_until_get(api, "getInputTemp"),
+                "voltage": try_until_get(api, "getInputVoltage"),
+                "current": try_until_get(api, "getInputCurrent"),
+                "power": try_until_get(api, "getInputPower"),
             },
             "system": {
-                "temperature": api.getSystemTemp(),
-                "voltage": api.getSystemVoltage(),
-                "current": api.getSystemCurrent(),
-                "power": api.getSystemPower(),
+                "temperature": try_until_get(api, "getSystemTemp"),
+                "voltage": try_until_get(api, "getSystemVoltage"),
+                "current": try_until_get(api, "getSystemCurrent"),
+                "power": try_until_get(api, "getSystemPower"),
             },
             "battery": {
-                "temperature": api.getBatteryTemp(),
-                "voltage": api.getBatteryVoltage(),
-                "current": api.getBatteryCurrent(),
-                "power": api.getBatteryPower(),
+                "temperature": try_until_get(api, "getBatteryTemp"),
+                "voltage": try_until_get(api, "getBatteryVoltage"),
+                "current": try_until_get(api, "getBatteryCurrent"),
+                "power": try_until_get(api, "getBatteryPower"),
             },
         },
         "versions": {
