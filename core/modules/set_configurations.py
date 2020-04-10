@@ -1,7 +1,9 @@
 from pms_api.definitions import Definition
 from pms_api.event import Event
+from pms_api.exceptions import CRCCheckFailed
 from pms_api import SixfabPMS
 import time
+
 
 MAP_BOOL = {True: 1, False: 2}
 
@@ -39,8 +41,6 @@ MAP_ACTIONS = {
 
 MAP_INTERVAL_TYPE = {"seconds": 1, "minutes": 2, "hours": 3}
 
-import time
-
 
 def get_until_done(function):
     while True:
@@ -55,16 +55,16 @@ def try_until_done(api, function, *args, **kwargs):
     while True:
         try:
             resp = getattr(api, function)(*args, **kwargs)
-        except:
-            resp = 0
-
-        if resp == 1:
-            print("success for: ", function)
-            return resp
-        elif resp == -2:
+        except CRCCheckFailed:
+            print("[SETTER] crc check failed, reinitializing api")
             del api
             api = SixfabPMS()
-
+        except Exception:
+            print(e)
+            resp = 0
+        else:
+            print("success for: ", function)
+            return resp
 
         print("trying again for: ", function)
         time.sleep(0.5)
@@ -77,11 +77,11 @@ def update_timezone(api, timezone):
     operator, offset = timezone[3:4], timezone[4:]
 
     if timezone == "default":
-        try_until_done(api, "setRtcTime", (int(time.time()) - time.timezone), timeout=100)
+        try_until_done(api, "setRtcTime", (int(time.time()) - time.timezone), timeout=150)
         return
 
     if ":" not in offset and offset == "0":
-        try_until_done(api, "setRtcTime", int(time.time()), timeout=100)
+        try_until_done(api, "setRtcTime", int(time.time()), timeout=150)
         return
 
     offset_to_calculate = 0
@@ -103,7 +103,7 @@ def update_timezone(api, timezone):
         epoch_to_set = int(time.time()) - offset_to_calculate
 
 
-    try_until_done(api, "setRtcTime", epoch_to_set, timeout=100)
+    try_until_done(api, "setRtcTime", epoch_to_set, timeout=150)
 
 
 def set_configurations(api, data):
