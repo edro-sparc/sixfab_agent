@@ -6,6 +6,7 @@ import paho.mqtt.client as mqtt
 from pms_api import SixfabPMS
 
 from .modules import *
+from .modules.set_configurations import update_timezone
 
 MQTT_HOST = "power.sixfab.com"
 MQTT_PORT = 1883
@@ -28,6 +29,7 @@ class Agent(object):
         self.PMSAPI = SixfabPMS()
 
         self.lock_feeder = False
+        self.feeder_working = False
 
         client.username_pw_set(token, token)
         client.user_data_set(token)
@@ -63,10 +65,12 @@ class Agent(object):
                 continue
 
             try:
+                self.feeder_working = True
                 self.client.publish(
                     "/device/{token}/feed".format(token=self.token),
                     json.dumps(read_data(self.PMSAPI, agent_version=self.configs["version"])),
                 )
+                self.feeder_working = False
                 time.sleep(self.configs["feeder_interval"])
             except:
                 time.sleep(1)
@@ -121,6 +125,13 @@ class Agent(object):
                 ))
                 agent_update_thread.start()
                 return
+
+            elif update_type == "rtc":
+                while self.feeder_working:
+                    pass
+                self.lock_feeder = True
+                update_timezone(self.PMSAPI, command_data["timezone"])
+                self.lock_feeder = False
 
         else:
             response = json.dumps(
