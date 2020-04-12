@@ -61,7 +61,7 @@ def read_data(api, **kwargs):
     return {
         "timestamp": time.time(),
         "charge_status": try_until_get(api, "getBatteryLevel"),
-        "battery_health": try_until_get(api, "getBatteryHealth"),
+        "battery_healt": try_until_get(api, "getBatteryHealth"),
         "fanspeed": try_until_get(api, "getFanSpeed"),
         "fan_health": fan_health(),
         "working_status": working_mode(),
