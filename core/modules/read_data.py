@@ -11,9 +11,11 @@ def try_until_get(api, function):
             print("[GETTER] crc check failed, reinitializing api")
             del api
             api = SixfabPMS()
+        except TypeError:
+            print("[GETTER] clearing pipe")
+            api.clearPipe()
         except Exception as e:
             print(e)
-            resp = None
         else:
             return resp
             
