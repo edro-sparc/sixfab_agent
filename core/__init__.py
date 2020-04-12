@@ -66,10 +66,12 @@ class Agent(object):
 
             try:
                 self.feeder_working = True
+                print("calling feeder")
                 self.client.publish(
                     "/device/{token}/feed".format(token=self.token),
                     json.dumps(read_data(self.PMSAPI, agent_version=self.configs["version"])),
                 )
+                print("feeder done")
                 self.feeder_working = False
                 time.sleep(self.configs["feeder_interval"])
             except:
@@ -96,11 +98,17 @@ class Agent(object):
         command_data = message.get("data", {})
 
         if COMMANDS.get(command, False):
+            while self.feeder_working:
+                    print("waitin' feeder to execute command")
+                    time.sleep(.3)
+            
+            executed_command_output = COMMANDS[command](self.PMSAPI, command_data)
+
             response = json.dumps(
                 {
                     "command": command,
                     "commandID": commandID,
-                    "response": COMMANDS[command](self.PMSAPI, command_data),
+                    "response": executed_command_output,
                 }
             )
 
@@ -127,12 +135,20 @@ class Agent(object):
                 return
 
             elif update_type == "rtc":
-                while self.feeder_working:
-                    print("waitin' feeder")
-                    pass
-                self.lock_feeder = True
-                update_timezone(self.PMSAPI, command_data["timezone"])
-                self.lock_feeder = False
+
+                def update_timezone_thread():
+                    while self.feeder_working:
+                        time.sleep(.3)
+                        print("waitin' feeder")
+
+                    time.sleep(1)
+
+                    self.lock_feeder = True
+                    print(command_data["timezone"])
+                    update_timezone(self.PMSAPI, command_data["timezone"])
+                    self.lock_feeder = False
+
+                Thread(target=update_timezone_thread).start()
 
         else:
             response = json.dumps(
