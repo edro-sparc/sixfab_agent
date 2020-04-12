@@ -140,8 +140,6 @@ class Agent(object):
                     while self.feeder_working:
                         time.sleep(.3)
 
-                    time.sleep(1)
-
                     self.lock_feeder = True
                     logging.debug("Setting RTC time to "+command_data["timezone"])
                     update_timezone(self.PMSAPI, command_data["timezone"])
