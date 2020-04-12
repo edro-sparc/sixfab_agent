@@ -59,9 +59,9 @@ def try_until_done(api, function, *args, **kwargs):
             print("[SETTER] crc check failed, reinitializing api")
             del api
             api = SixfabPMS()
-        except Exception:
-            print(e)
+        except Exception as e:
             resp = 0
+            print("exception raised: ",e)
         else:
             print("success for: ", function)
             return resp
