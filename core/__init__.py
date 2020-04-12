@@ -128,6 +128,7 @@ class Agent(object):
 
             elif update_type == "rtc":
                 while self.feeder_working:
+                    print("waitin' feeder")
                     pass
                 self.lock_feeder = True
                 update_timezone(self.PMSAPI, command_data["timezone"])
