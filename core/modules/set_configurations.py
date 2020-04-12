@@ -2,6 +2,7 @@ from pms_api.definitions import Definition
 from pms_api.event import Event
 from pms_api.exceptions import CRCCheckFailed
 from pms_api import SixfabPMS
+import logging
 import time
 
 
@@ -56,19 +57,20 @@ def try_until_done(api, function, *args, **kwargs):
         try:
             resp = getattr(api, function)(*args, **kwargs)
         except CRCCheckFailed:
-            print("[SETTER] crc check failed, reinitializing api")
+            logging.error("\033[33m[{}] \033[0m crc check failed, reinitializing api".format(function))
             del api
             api = SixfabPMS()
         except TypeError:
-            print("typeerror raised, clearing pipe")
+            logging.error("\033[33m[{}] \033[0m TypeError raised, clearing pipe".format(function))
             api.clearPipe()
         except Exception as e:
-            print("exception raised: ", e)
+            logging.error("\033[33m[{}] \033[0m unknown exception raised".format(function))
         else:
-            print("success for: ", function)
+            logging.debug("\033[94m[{}] \033[0m Function executed success".format(function))
             return resp
 
-        print("trying again for: ", function)
+
+        logging.error("[{}] trying again".format(function))
         time.sleep(0.5)
 
 def update_timezone(api, timezone):

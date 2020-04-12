@@ -1,7 +1,16 @@
+import os
+import logging
+
 from core import Agent
 from configparser import ConfigParser
 
 __version__ = "0.1.0"
+
+
+is_debugger_true = os.getenv('ENABLE_PMS_AGENT_DEBUG')
+is_debugger_true = True if is_debugger_true == "True" else False
+
+logging.basicConfig(level=logging.DEBUG if is_debugger_true else logging.CRITICAL)
 
 environments = ConfigParser()
 environments.read("/opt/sixfab/.env")

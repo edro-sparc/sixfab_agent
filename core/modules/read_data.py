@@ -1,25 +1,28 @@
-from pms_api import SixfabPMS
-from pms_api.exceptions import CRCCheckFailed
+import logging
 import time
 import re
+
+from pms_api import SixfabPMS
+from pms_api.exceptions import CRCCheckFailed
 
 def try_until_get(api, function):
     while True:
         try:
             resp = getattr(api, function)()
         except CRCCheckFailed:
-            print("[GETTER] crc check failed, reinitializing api")
+            logging.error("\033[33m[{}] \033[0m crc check failed, reinitializing api".format(function))
             del api
             api = SixfabPMS()
         except TypeError:
-            print("[GETTER] clearing pipe")
+            logging.error("\033[33m[{}] \033[0m TypeError raised, clearing pipe".format(function))
             api.clearPipe()
         except Exception as e:
-            print(e)
+            logging.error("\033[33m[{}] \033[0m unknown exception raised".format(function))
         else:
+            logging.debug("\033[94m[{}] \033[0m done".format(function))
             return resp
             
-        print("trying again for: ", function)
+        logging.error("[{}] trying again".format(function))
         time.sleep(0.5)
 
 def read_data(api, **kwargs):

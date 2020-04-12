@@ -1,5 +1,6 @@
 import time
 import json
+import logging
 from threading import Thread
 
 import paho.mqtt.client as mqtt
@@ -66,12 +67,12 @@ class Agent(object):
 
             try:
                 self.feeder_working = True
-                print("calling feeder")
+                logging.debug("[FEEDER] Starting, locking setters")
                 self.client.publish(
                     "/device/{token}/feed".format(token=self.token),
                     json.dumps(read_data(self.PMSAPI, agent_version=self.configs["version"])),
                 )
-                print("feeder done")
+                logging.debug("[FEEDER] Done, releasing setters")
                 self.feeder_working = False
                 time.sleep(self.configs["feeder_interval"])
             except:
@@ -99,7 +100,6 @@ class Agent(object):
 
         if COMMANDS.get(command, False):
             while self.feeder_working:
-                    print("waitin' feeder to execute command")
                     time.sleep(.3)
             
             executed_command_output = COMMANDS[command](self.PMSAPI, command_data)
@@ -139,12 +139,11 @@ class Agent(object):
                 def update_timezone_thread():
                     while self.feeder_working:
                         time.sleep(.3)
-                        print("waitin' feeder")
 
                     time.sleep(1)
 
                     self.lock_feeder = True
-                    print(command_data["timezone"])
+                    logging.debug("Setting RTC time to "+command_data["timezone"])
                     update_timezone(self.PMSAPI, command_data["timezone"])
                     self.lock_feeder = False
 
