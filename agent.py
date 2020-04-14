@@ -19,7 +19,7 @@ environments = environments["pms"]
 configs = {
     "version": __version__,
     "feeder_interval": int(environments.get("INTERVAL", 10)),
-    "firmware_update_repository": "https://git.ray.kim/sixfab-power/temp-fota-repo.git",
+    "firmware_update_repository": "https://git.sixfab.com/sixfab-power/firmwares.git",
 }
 
 if __name__ == "__main__":
