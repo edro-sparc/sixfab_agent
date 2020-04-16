@@ -54,31 +54,33 @@ class Agent(object):
         feeder.start()
 
     def feeder(self):
-        try:
-            logging.debug("[FEEDER] Starting, locking")
-            with self.lock_thread:
-                self.client.publish(
-                    "/device/{token}/feed".format(token=self.token),
-                    json.dumps(
-                        read_data(self.PMSAPI, agent_version=self.configs["version"])
-                    ),
-                )
-            logging.debug("[FEEDER] Done, releasing setters")
+        while True:
+            try:
+                logging.debug("[FEEDER] Starting, locking")
+                with self.lock_thread:
+                    self.client.publish(
+                        "/device/{token}/feed".format(token=self.token),
+                        json.dumps(
+                            read_data(self.PMSAPI, agent_version=self.configs["version"])
+                        ),
+                    )
+                logging.debug("[FEEDER] Done, releasing setters")
 
-            time.sleep(self.configs["feeder_interval"])
-        except:
-            time.sleep(1)
+                #time.sleep(self.configs["feeder_interval"])
+                time.sleep(0.1)
+            except:
+                time.sleep(1)
 
     def _lock_feeder_for_firmware_update(self):
-
         with self.lock_thread:
             update_firmware(
                 api=self.PMSAPI,
                 repository=self.configs["firmware_update_repository"],
                 mqtt_client=self.client,
-                lock_feeder=self.lock_feeder,
                 token=self.token,
             )
+
+            time.sleep(15)
 
     def __on_message(self, client, userdata, msg):
         message = json.loads(msg.payload.decode())
@@ -87,9 +89,6 @@ class Agent(object):
         command_data = message.get("data", {})
 
         if COMMANDS.get(command, False):
-            while self.feeder_working:
-                time.sleep(0.3)
-
             def _lock_and_execute_command():
                 with self.lock_thread:
                     executed_command_output = COMMANDS[command](
@@ -134,13 +133,10 @@ class Agent(object):
             elif update_type == "rtc":
 
                 def update_timezone_thread():
-                    while self.feeder_working:
-                        time.sleep(0.3)
+                    with self.lock_thread:
+                        logging.debug("Setting RTC time to " + command_data["timezone"])
+                        update_timezone(self.PMSAPI, command_data["timezone"])
 
-                    self.lock_feeder = True
-                    logging.debug("Setting RTC time to " + command_data["timezone"])
-                    update_timezone(self.PMSAPI, command_data["timezone"])
-                    self.lock_feeder = False
 
                 Thread(target=update_timezone_thread).start()
 
