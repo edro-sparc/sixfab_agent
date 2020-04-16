@@ -2,14 +2,15 @@ import os
 import re
 import json
 
-LOCAL_FIRMWARE_FOLDER = '/opt/sixfab/pms_firmwares'
+from .recovery import try_until_get
+
+LOCAL_FIRMWARE_FOLDER = '/opt/sixfab/pms/firmwares'
 
 def update_firmware(**kwargs):
     api = kwargs.get('api')
     token = kwargs.get("token")
     remote_repository = kwargs.get("repository", None)
     mqtt_client = kwargs.get("mqtt_client", None)
-    lock_feeder = kwargs.get("lock_feeder", None)
 
     def send_status(status):
         mqtt_client.publish(
@@ -21,7 +22,6 @@ def update_firmware(**kwargs):
         )
 
     send_status("git")
-
     if os.path.exists(LOCAL_FIRMWARE_FOLDER):
         os.system(f"cd {LOCAL_FIRMWARE_FOLDER} && sudo git pull")
     else:
@@ -31,7 +31,7 @@ def update_firmware(**kwargs):
     latest_firmware = f"{LOCAL_FIRMWARE_FOLDER}/sixfab_pms_firmware_{latest_version}.bin"
 
     try:
-        current_firmware_version = api.getFirmwareVer()
+        current_firmware_version = try_until_get(api, "getFirmwareVer")
     except:
         send_status("error")
         return
@@ -79,8 +79,8 @@ def update_agent(**kwargs):
     
     send_status("git")
 
-    os.system("cd /opt/sixfab/pms-agent && sudo git reset --hard HEAD && sudo git pull")
-
+    os.system("cd /opt/sixfab/pms/agent && sudo git reset --hard HEAD && sudo git pull")
+    os.system("cd /opt/sixfab/pms/api && sudo git reset --hard HEAD && sudo git pull && sudo pip3 install -r requirements.txt && pip3 install .")
     send_status("restart")
 
     os.system("sudo systemctl restart pms_agent")

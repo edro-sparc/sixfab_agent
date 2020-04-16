@@ -1,9 +1,10 @@
+import time
+import logging
 from pms_api.definitions import Definition
 from pms_api.event import Event
 from pms_api.exceptions import CRCCheckFailed
 from pms_api import SixfabPMS
-import logging
-import time
+from .recovery import try_until_done
 
 
 MAP_BOOL = {True: 1, False: 2}
@@ -52,27 +53,6 @@ def get_until_done(function):
     time.sleep(0.5)
 
 
-def try_until_done(api, function, *args, **kwargs):
-    while True:
-        try:
-            resp = getattr(api, function)(*args, **kwargs)
-        except CRCCheckFailed:
-            logging.error("\033[33m[{}] \033[0m crc check failed, reinitializing api".format(function))
-            del api
-            api = SixfabPMS()
-        except TypeError:
-            logging.error("\033[33m[{}] \033[0m TypeError raised, clearing pipe".format(function))
-            api.clearPipe()
-        except Exception as e:
-            logging.error("\033[33m[{}] \033[0m unknown exception raised".format(function))
-        else:
-            logging.debug("\033[94m[{}] \033[0m Function executed success".format(function))
-            return resp
-
-
-        logging.error("[{}] trying again".format(function))
-        time.sleep(0.5)
-
 def update_timezone(api, timezone):
     """
         timezone format: UTC[operator][offset]
@@ -81,11 +61,11 @@ def update_timezone(api, timezone):
     operator, offset = timezone[3:4], timezone[4:]
 
     if timezone == "default":
-        try_until_done(api, "setRtcTime", (int(time.time()) - time.timezone))
+        try_until_done(api, "setRtcTime", (int(time.time())))
         return
 
     if ":" not in offset and offset == "0":
-        try_until_done(api, "setRtcTime", int(time.time()))
+        try_until_done(api, "setRtcTime", int(time.time() - time.timezone*-1))
         return
 
     offset_to_calculate = 0
@@ -102,9 +82,9 @@ def update_timezone(api, timezone):
     
 
     if operator == "+":
-        epoch_to_set = int(time.time()) + offset_to_calculate
+        epoch_to_set = int(time.time() - time.timezone*-1) + offset_to_calculate
     else:
-        epoch_to_set = int(time.time()) - offset_to_calculate
+        epoch_to_set = int(time.time() - time.timezone*-1) - offset_to_calculate
 
 
     try_until_done(api, "setRtcTime", epoch_to_set)
