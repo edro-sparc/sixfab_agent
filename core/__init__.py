@@ -1,7 +1,7 @@
 import time
 import json
 import logging
-from threading import Thread
+from threading import Thread, Lock
 
 import paho.mqtt.client as mqtt
 from pms_api import SixfabPMS
@@ -17,11 +17,7 @@ COMMANDS = {"healthcheck": health_check, "configurations": set_configurations}
 
 class Agent(object):
     def __init__(
-        self,
-        token: str,
-        configs: dict,
-        lwt: bool = True,
-        enable_feeder: bool = True,
+        self, token: str, configs: dict, lwt: bool = True, enable_feeder: bool = True,
     ):
         client = mqtt.Client()
         self.client = client
@@ -29,8 +25,7 @@ class Agent(object):
         self.configs = configs
         self.PMSAPI = SixfabPMS()
 
-        self.lock_feeder = False
-        self.feeder_working = False
+        self.lock_thread = Lock()
 
         client.username_pw_set(token, token)
         client.user_data_set(token)
@@ -39,7 +34,7 @@ class Agent(object):
             client.will_set(
                 "/device/{}/status".format(token),
                 json.dumps({"connected": False}),
-                retain=True
+                retain=True,
             )
 
         client.connect(MQTT_HOST, MQTT_PORT, 50)
@@ -59,38 +54,31 @@ class Agent(object):
         feeder.start()
 
     def feeder(self):
-
-        while True:
-            if self.lock_feeder:
-                time.sleep(.5)
-                continue
-
-            try:
-                self.feeder_working = True
-                logging.debug("[FEEDER] Starting, locking setters")
+        try:
+            logging.debug("[FEEDER] Starting, locking")
+            with self.lock_thread:
                 self.client.publish(
                     "/device/{token}/feed".format(token=self.token),
-                    json.dumps(read_data(self.PMSAPI, agent_version=self.configs["version"])),
+                    json.dumps(
+                        read_data(self.PMSAPI, agent_version=self.configs["version"])
+                    ),
                 )
-                logging.debug("[FEEDER] Done, releasing setters")
-                self.feeder_working = False
-                time.sleep(self.configs["feeder_interval"])
-            except:
-                time.sleep(1)
+            logging.debug("[FEEDER] Done, releasing setters")
+
+            time.sleep(self.configs["feeder_interval"])
+        except:
+            time.sleep(1)
 
     def _lock_feeder_for_firmware_update(self):
-        self.lock_feeder = not self.lock_feeder
 
-        update_firmware(
-            api=self.PMSAPI,
-            repository= self.configs["firmware_update_repository"],
-            mqtt_client=self.client,
-            lock_feeder=self.lock_feeder,
-            token=self.token
-        )
-
-        self.lock_feeder = False
-        
+        with self.lock_thread:
+            update_firmware(
+                api=self.PMSAPI,
+                repository=self.configs["firmware_update_repository"],
+                mqtt_client=self.client,
+                lock_feeder=self.lock_feeder,
+                token=self.token,
+            )
 
     def __on_message(self, client, userdata, msg):
         message = json.loads(msg.payload.decode())
@@ -100,37 +88,46 @@ class Agent(object):
 
         if COMMANDS.get(command, False):
             while self.feeder_working:
-                    time.sleep(.3)
-            
-            executed_command_output = COMMANDS[command](self.PMSAPI, command_data)
+                time.sleep(0.3)
 
-            response = json.dumps(
-                {
-                    "command": command,
-                    "commandID": commandID,
-                    "response": executed_command_output,
-                }
-            )
+            def _lock_and_execute_command():
+                with self.lock_thread:
+                    executed_command_output = COMMANDS[command](
+                        self.PMSAPI, command_data
+                    )
 
-            self.client.publish(
-                "/device/{userdata}/hive".format(userdata=userdata), response
-            )
+                    response = json.dumps(
+                        {
+                            "command": command,
+                            "commandID": commandID,
+                            "response": executed_command_output,
+                        }
+                    )
 
+                    self.client.publish(
+                        "/device/{userdata}/hive".format(userdata=userdata), response
+                    )
+
+            Thread(target=_lock_and_execute_command).start()
             return
 
-        if command.startswith('update_'):
+        if command.startswith("update_"):
             update_type = command.split("_")[1]
 
             if update_type == "firmware":
-                firmware_update_thread = Thread(target=self._lock_feeder_for_firmware_update)
+                firmware_update_thread = Thread(
+                    target=self._lock_feeder_for_firmware_update
+                )
                 firmware_update_thread.start()
                 return
 
             elif update_type == "agent":
-                agent_update_thread = Thread(target=update_agent, kwargs=dict(
-                    mqtt_client = self.client,
-                    token = self.token
-                ))
+
+                def _lock_and_update_agent(**kwargs):
+                    with self.lock_thread:
+                        update_agent(mqtt_client=self.client, token=self.token)
+
+                agent_update_thread = Thread(target=_lock_and_update_agent,)
                 agent_update_thread.start()
                 return
 
@@ -138,10 +135,10 @@ class Agent(object):
 
                 def update_timezone_thread():
                     while self.feeder_working:
-                        time.sleep(.3)
+                        time.sleep(0.3)
 
                     self.lock_feeder = True
-                    logging.debug("Setting RTC time to "+command_data["timezone"])
+                    logging.debug("Setting RTC time to " + command_data["timezone"])
                     update_timezone(self.PMSAPI, command_data["timezone"])
                     self.lock_feeder = False
 
