@@ -66,8 +66,7 @@ class Agent(object):
                     )
                 logging.debug("[FEEDER] Done, releasing setters")
 
-                #time.sleep(self.configs["feeder_interval"])
-                time.sleep(0.1)
+                time.sleep(self.configs["feeder_interval"])
             except:
                 time.sleep(1)
 
