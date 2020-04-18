@@ -12,13 +12,13 @@ MAP_BOOL = {True: 1, False: 2}
 MAP_ANIMATIONS = {"Disabled": 1, "Heartbeat": 2, "Temperature Map": 3}
 
 MAP_COLORS = {
-    "Green": 1,
-    "Blue": 2,
-    "Red": 3,
-    "Yellow": 4,
-    "Cyan": 5,
-    "Magenta": 6,
-    "White": 7,
+    "Green": Definition.GREEN,
+    "Blue": Definition.BLUE,
+    "Red": Definition.RED,
+    "Yellow": Definition.YELLOW,
+    "Cyan": Definition.CYAN,
+    "Magenta": Definition.MAGENTA,
+    "White": Definition.WHITE,
 }
 
 MAP_SPEEDS = {"Slow": 1, "Normal": 2, "Fast": 3}
