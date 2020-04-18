@@ -8,8 +8,9 @@ from .recovery import try_until_get
 
 def read_data(api, **kwargs):
 
-    # TODO api.softPowerOff()
-    # TODO api.softReboot()
+    api.softPowerOff()
+    api.softReboot()
+    api.sendSystemTemp()
 
     def fan_health():
         response = try_until_get(api, "getFanHealth")
