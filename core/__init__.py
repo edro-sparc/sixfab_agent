@@ -94,13 +94,18 @@ class Agent(object):
                         self.PMSAPI, command_data
                     )
 
-                    response = json.dumps(
-                        {
-                            "command": command,
-                            "commandID": commandID,
-                            "response": executed_command_output,
-                        }
-                    )
+                    if command == "configurations":
+                        response = json.dumps({
+                                "command": "update_status_configurations",
+                                "commandID": commandID,
+                                "response": {"updated": True},
+                        })
+                    else:
+                        response = json.dumps({
+                                "command": command,
+                                "commandID": commandID,
+                                "response": executed_command_output,
+                        })
 
                     self.client.publish(
                         "/device/{userdata}/hive".format(userdata=userdata), response
