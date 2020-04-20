@@ -4,7 +4,7 @@ import logging
 from core import Agent
 from configparser import ConfigParser
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 
 # is_debugger_true = os.getenv('ENABLE_PMS_AGENT_DEBUG')
