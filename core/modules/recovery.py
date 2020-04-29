@@ -6,7 +6,7 @@ from pms_api.exceptions import CRCCheckFailed
 def try_until_get(api, function):
     try_count = 1
     while True:
-        if try_count > 3:
+        if try_count > 5:
             logging.error("\033[33m[{}] \033[0m tried for 3 times and couldn't get response".format(function))
             raise OverflowError("")
 
@@ -35,7 +35,7 @@ def try_until_done(api, function, *args, **kwargs):
     try_count = 1
 
     while True:
-        if try_count > 3:
+        if try_count > 5:
             logging.error("\033[33m[{}] \033[0m tried for 3 times and couldn't get response".format(function))
             raise OverflowError("")
         
