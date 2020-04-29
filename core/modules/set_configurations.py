@@ -4,7 +4,7 @@ from pms_api.definitions import Definition
 from pms_api.event import Event
 from pms_api.exceptions import CRCCheckFailed
 from pms_api import SixfabPMS
-from .recovery import try_until_done, get_until_done
+from .recovery import try_until_done, try_until_done
 
 
 MAP_BOOL = {True: 1, False: 2}
@@ -110,7 +110,7 @@ def set_configurations(api, data):
                 data["scheduled"].remove(event)
 
     cloud_event_ids = [event["_id"] for event in data["scheduled"]]
-    local_event_ids = get_until_done(api.getScheduledEventIds)
+    local_event_ids = try_until_done(api.getScheduledEventIds)
 
     s = set(cloud_event_ids)
     ids_to_delete = [x for x in local_event_ids if x not in s]
