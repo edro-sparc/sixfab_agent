@@ -4,7 +4,7 @@ from pms_api.definitions import Definition
 from pms_api.event import Event
 from pms_api.exceptions import CRCCheckFailed
 from pms_api import SixfabPMS
-from .recovery import try_until_done
+from .recovery import try_until_done, get_until_done
 
 
 MAP_BOOL = {True: 1, False: 2}
@@ -42,15 +42,6 @@ MAP_ACTIONS = {
 }
 
 MAP_INTERVAL_TYPE = {"seconds": 1, "minutes": 2, "hours": 3}
-
-
-def get_until_done(function):
-    while True:
-        try:
-            return function()
-        except:
-            pass
-    time.sleep(0.5)
 
 
 def update_timezone(api, timezone):

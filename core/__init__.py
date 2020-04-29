@@ -37,7 +37,7 @@ class Agent(object):
                 retain=True,
             )
 
-        client.connect(MQTT_HOST, MQTT_PORT, 50)
+        client.connect(MQTT_HOST, MQTT_PORT, keepalive=120)
         client.on_connect = self.__on_connect
         client.on_message = self.__on_message
         client.on_disconnect = self.__on_disconnect
@@ -90,21 +90,24 @@ class Agent(object):
         if COMMANDS.get(command, False):
             def _lock_and_execute_command():
                 with self.lock_thread:
-                    executed_command_output = COMMANDS[command](
-                        self.PMSAPI, command_data
-                    )
+                    try:
+                        executed_command_output = COMMANDS[command](
+                            self.PMSAPI, command_data
+                        )
+                    except Exception:
+                        pass
+                    else:
+                        response = json.dumps(
+                            {
+                                "command": command,
+                                "commandID": commandID,
+                                "response": executed_command_output,
+                            }
+                        )
 
-                    response = json.dumps(
-                        {
-                            "command": command,
-                            "commandID": commandID,
-                            "response": executed_command_output,
-                        }
-                    )
-
-                    self.client.publish(
-                        "/device/{userdata}/hive".format(userdata=userdata), response
-                    )
+                        self.client.publish(
+                            "/device/{userdata}/hive".format(userdata=userdata), response
+                        )
 
             Thread(target=_lock_and_execute_command).start()
             return
