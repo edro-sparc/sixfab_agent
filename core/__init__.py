@@ -90,24 +90,21 @@ class Agent(object):
         if COMMANDS.get(command, False):
             def _lock_and_execute_command():
                 with self.lock_thread:
-                    try:
-                        executed_command_output = COMMANDS[command](
-                            self.PMSAPI, command_data
-                        )
-                    except Exception:
-                        pass
-                    else:
-                        response = json.dumps(
-                            {
-                                "command": command,
-                                "commandID": commandID,
-                                "response": executed_command_output,
-                            }
-                        )
+                    executed_command_output = COMMANDS[command](
+                        self.PMSAPI, command_data
+                    )
 
-                        self.client.publish(
-                            "/device/{userdata}/hive".format(userdata=userdata), response
-                        )
+                    response = json.dumps(
+                        {
+                            "command": command,
+                            "commandID": commandID,
+                            "response": executed_command_output,
+                        }
+                    )
+
+                    self.client.publish(
+                        "/device/{userdata}/hive".format(userdata=userdata), response
+                    )
 
             Thread(target=_lock_and_execute_command).start()
             return
