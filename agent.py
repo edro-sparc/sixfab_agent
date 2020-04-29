@@ -2,6 +2,7 @@ import os
 import logging
 
 from core import Agent
+from core.modules import fixer
 from configparser import ConfigParser
 
 __version__ = "0.1.2"

@@ -4,7 +4,12 @@ from pms_api import SixfabPMS
 from pms_api.exceptions import CRCCheckFailed
 
 def try_until_get(api, function):
+    try_count = 1
     while True:
+        if try_count > 5:
+            logging.error("\033[33m[{}] \033[0m tried for 3 times and couldn't get response".format(function))
+            raise OverflowError("")
+
         try:
             resp = getattr(api, function)()
         except CRCCheckFailed:
@@ -19,13 +24,21 @@ def try_until_get(api, function):
         else:
             logging.debug("\033[94m[{}] \033[0m done".format(function))
             return resp
+        finally:
+            try_count += 1
             
         logging.error("[{}] trying again".format(function))
         time.sleep(0.5)
 
 
 def try_until_done(api, function, *args, **kwargs):
+    try_count = 1
+
     while True:
+        if try_count > 5:
+            logging.error("\033[33m[{}] \033[0m tried for 3 times and couldn't get response".format(function))
+            raise OverflowError("")
+        
         try:
             resp = getattr(api, function)(*args, **kwargs)
         except CRCCheckFailed:
@@ -40,6 +53,8 @@ def try_until_done(api, function, *args, **kwargs):
         else:
             logging.debug("\033[94m[{}] \033[0m Function executed success".format(function))
             return resp
+        finally:
+            try_count += 1
 
 
         logging.error("[{}] trying again".format(function))
