@@ -1,7 +1,7 @@
 import os
 
 if not os.path.exists("/opt/sixfab/.agent-fixes"):
-    os.system("touch /opt/sixfab/.agent-fixes")
+    os.system("sudo touch /opt/sixfab/.agent-fixes")
 
 fixes_list = open("/opt/sixfab/.agent-fixes").read().split(",")
 
