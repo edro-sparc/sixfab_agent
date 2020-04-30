@@ -58,6 +58,8 @@ class Agent(object):
             try:
                 logging.debug("[FEEDER] Starting, locking")
                 with self.lock_thread:
+                    self.client.subscribe("/device/{}/status".format(self.token))
+
                     self.client.publish(
                         "/device/{token}/feed".format(token=self.token),
                         json.dumps(
@@ -87,6 +89,14 @@ class Agent(object):
         commandID = message.get("commandID", None)
         command_data = message.get("data", {})
 
+        if "connected" in message:
+            if not message["connected"]:
+                self.client.publish(
+                    "/device/{}/status".format(self.token),
+                    json.dumps({"connected": True}),
+                    retain=True,
+                )
+            
         if COMMANDS.get(command, False):
             def _lock_and_execute_command():
                 with self.lock_thread:
