@@ -52,11 +52,11 @@ def update_timezone(api, timezone):
     operator, offset = timezone[3:4], timezone[4:]
 
     if timezone == "default":
-        try_until_done(api, "setRtcTime", (int(time.time())))
+        try_until_done(api, "setRtcTime", int(time.time() - time.timezone))
         return
 
     if ":" not in offset and offset == "0":
-        try_until_done(api, "setRtcTime", int(time.time() - time.timezone*-1))
+        try_until_done(api, "setRtcTime", int(time.time()))
         return
 
     offset_to_calculate = 0
@@ -73,9 +73,9 @@ def update_timezone(api, timezone):
     
 
     if operator == "+":
-        epoch_to_set = int(time.time() - time.timezone*-1) + offset_to_calculate
+        epoch_to_set = int(time.time()) + offset_to_calculate
     else:
-        epoch_to_set = int(time.time() - time.timezone*-1) - offset_to_calculate
+        epoch_to_set = int(time.time()) - offset_to_calculate
 
 
     try_until_done(api, "setRtcTime", epoch_to_set)
