@@ -5,7 +5,7 @@ from core import Agent
 from core.modules import fixer
 from configparser import ConfigParser
 
-__version__ = "0.1.4"
+__version__ = "0.1.5"
 
 
 # is_debugger_true = os.getenv('ENABLE_PMS_AGENT_DEBUG')
