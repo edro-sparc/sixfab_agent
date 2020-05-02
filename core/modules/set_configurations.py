@@ -34,12 +34,12 @@ MAP_DAYS = {
 }
 
 MAP_ACTIONS = {
-    "start": 5,
-    "shutdown_hard": 1,
-    "shutdown_soft": 2,
-    "reboot_hard": 3,
-    "reboot_soft": 4,
-    "start_soft" : 6,    # newly added   
+    "start": Definition.HARD_POWER_ON,
+    "shutdown_hard": Definition.HARD_POWER_OFF,
+    "shutdown_soft": Definition.SOFT_POWER_OFF,
+    "reboot_hard": Definition.HARD_REBOOT,
+    "reboot_soft": Definition.SOFT_REBOOT,
+    "start_soft" : Definition.SOFT_POWER_ON,    # newly added   
 }
 
 MAP_INTERVAL_TYPE = {"seconds": 1, "minutes": 2, "hours": 3}
