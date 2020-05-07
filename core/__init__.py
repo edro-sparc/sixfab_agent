@@ -37,7 +37,7 @@ class Agent(object):
                 retain=True,
             )
 
-        client.connect(MQTT_HOST, MQTT_PORT, keepalive=120)
+        client.connect(MQTT_HOST, MQTT_PORT, keepalive=30)
         client.on_connect = self.__on_connect
         client.on_message = self.__on_message
         client.on_disconnect = self.__on_disconnect
@@ -58,6 +58,8 @@ class Agent(object):
             try:
                 logging.debug("[FEEDER] Starting, locking")
                 with self.lock_thread:
+                    self.client.subscribe("/device/{}/status".format(self.token))
+
                     self.client.publish(
                         "/device/{token}/feed".format(token=self.token),
                         json.dumps(
@@ -87,6 +89,14 @@ class Agent(object):
         commandID = message.get("commandID", None)
         command_data = message.get("data", {})
 
+        if "connected" in message:
+            if not message["connected"]:
+                self.client.publish(
+                    "/device/{}/status".format(self.token),
+                    json.dumps({"connected": True}),
+                    retain=True,
+                )
+            
         if COMMANDS.get(command, False):
             def _lock_and_execute_command():
                 with self.lock_thread:
