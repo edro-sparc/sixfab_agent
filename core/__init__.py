@@ -124,7 +124,7 @@ class Agent(object):
             Thread(target=_lock_and_execute_command).start()
             return
 
-        if command.startswith("update_"):
+        if command and command.startswith("update_"):
             update_type = command.split("_")[1]
 
             if update_type == "firmware":
