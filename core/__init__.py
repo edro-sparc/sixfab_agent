@@ -80,6 +80,7 @@ class Agent(object):
                 repository=self.configs["firmware_update_repository"],
                 mqtt_client=self.client,
                 token=self.token,
+                experimental_enabled=self.configs["experimental_enabled"],
             )
 
             time.sleep(15)
@@ -139,7 +140,11 @@ class Agent(object):
 
                 def _lock_and_update_agent(**kwargs):
                     with self.lock_thread:
-                        update_agent(mqtt_client=self.client, token=self.token)
+                        update_agent(
+                            mqtt_client=self.client, 
+                            token=self.token,
+                            experimental_enabled=self.configs["experimental_enabled"]
+                            )
 
                 agent_update_thread = Thread(target=_lock_and_update_agent,)
                 agent_update_thread.start()
