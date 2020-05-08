@@ -51,7 +51,6 @@ def update_experimental_status(**kwargs):
     REPOSITORIES = ("/opt/sixfab/pms/api", "/opt/sixfab/pms/agent", "/opt/sixfab/pms/firmwares")
 
     if kwargs["current_status"] == kwargs["to_set"]:
-        print("all same_not changing")
         return
 
     if kwargs["to_set"] == True: # enable experimental version using
@@ -97,8 +96,7 @@ def update_experimental_status(**kwargs):
                 """.format(repo=repo)
             )
 
-    print("restarting agent")
-    # Popen("sleep 2 && sudo systemctl restart pms_agent", shell=True)
+    Popen("sleep 2 && sudo systemctl restart pms_agent", shell=True)
 
 def update_timezone(api, timezone):
     """
