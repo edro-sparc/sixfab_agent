@@ -58,8 +58,6 @@ class Agent(object):
             try:
                 logging.debug("[FEEDER] Starting, locking")
                 with self.lock_thread:
-                    self.client.subscribe("/device/{}/status".format(self.token))
-
                     self.client.publish(
                         "/device/{token}/feed".format(token=self.token),
                         json.dumps(
