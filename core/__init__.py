@@ -61,7 +61,10 @@ class Agent(object):
                     self.client.publish(
                         "/device/{token}/feed".format(token=self.token),
                         json.dumps(
-                            read_data(self.PMSAPI, agent_version=self.configs["version"], experimental_enabled=self.configs["EXPERIMENTAL"])
+                            read_data(
+                                self.PMSAPI, 
+                                agent_version=self.configs["version"]
+                            )
                         ),
                     )
                 logging.debug("[FEEDER] Done, releasing setters")
@@ -99,7 +102,7 @@ class Agent(object):
             def _lock_and_execute_command():
                 with self.lock_thread:
                     executed_command_output = COMMANDS[command](
-                        self.PMSAPI, command_data
+                        self.PMSAPI, command_data, configs=self.configs
                     )
 
                     if command == "configurations":
