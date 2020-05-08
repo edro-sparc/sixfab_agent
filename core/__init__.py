@@ -63,7 +63,7 @@ class Agent(object):
                     self.client.publish(
                         "/device/{token}/feed".format(token=self.token),
                         json.dumps(
-                            read_data(self.PMSAPI, agent_version=self.configs["version"])
+                            read_data(self.PMSAPI, agent_version=self.configs["version"], experimental_enabled=self.configs["EXPERIMENTAL"])
                         ),
                     )
                 logging.debug("[FEEDER] Done, releasing setters")

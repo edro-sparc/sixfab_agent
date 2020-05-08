@@ -64,9 +64,15 @@ def read_data(api, **kwargs):
                     )
 
         return '0.0.0'
+    
+    flags = []
+
+    if kwargs.get("experimental_enabled", False):
+        flags.append("experimental")
 
     return {
         "timestamp": time.time(),
+        "flags": flags,
         "charge_status": try_until_get(api, "getBatteryLevel"),
         "battery_healt": try_until_get(api, "getBatteryHealth"),
         "fanspeed": try_until_get(api, "getFanSpeed"),
