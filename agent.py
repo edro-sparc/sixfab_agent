@@ -5,7 +5,7 @@ from core import Agent
 from core.modules import fixer
 from configparser import ConfigParser
 
-__version__ = "0.1.1"
+__version__ = "0.1.6"
 
 
 # is_debugger_true = os.getenv('ENABLE_PMS_AGENT_DEBUG')
@@ -21,6 +21,7 @@ environments = environments["pms"]
 configs = {
     "version": __version__,
     "feeder_interval": int(environments.get("INTERVAL", 10)),
+    "experimental_enabled": True if environments.get("EXPERIMENTAL", False) == "True" else False,
     "firmware_update_repository": "https://git.sixfab.com/sixfab-power/firmwares.git",
 }
 

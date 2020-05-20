@@ -37,7 +37,7 @@ class Agent(object):
                 retain=True,
             )
 
-        client.connect(MQTT_HOST, MQTT_PORT, keepalive=120)
+        client.connect(MQTT_HOST, MQTT_PORT, keepalive=30)
         client.on_connect = self.__on_connect
         client.on_message = self.__on_message
         client.on_disconnect = self.__on_disconnect
@@ -58,12 +58,13 @@ class Agent(object):
             try:
                 logging.debug("[FEEDER] Starting, locking")
                 with self.lock_thread:
-                    self.client.subscribe("/device/{}/status".format(self.token))
-
                     self.client.publish(
                         "/device/{token}/feed".format(token=self.token),
                         json.dumps(
-                            read_data(self.PMSAPI, agent_version=self.configs["version"])
+                            read_data(
+                                self.PMSAPI, 
+                                agent_version=self.configs["version"]
+                            )
                         ),
                     )
                 logging.debug("[FEEDER] Done, releasing setters")
@@ -79,6 +80,7 @@ class Agent(object):
                 repository=self.configs["firmware_update_repository"],
                 mqtt_client=self.client,
                 token=self.token,
+                experimental_enabled=self.configs["experimental_enabled"],
             )
 
             time.sleep(15)
@@ -101,7 +103,7 @@ class Agent(object):
             def _lock_and_execute_command():
                 with self.lock_thread:
                     executed_command_output = COMMANDS[command](
-                        self.PMSAPI, command_data
+                        self.PMSAPI, command_data, configs=self.configs
                     )
 
                     if command == "configurations":
@@ -124,7 +126,7 @@ class Agent(object):
             Thread(target=_lock_and_execute_command).start()
             return
 
-        if command.startswith("update_"):
+        if command and command.startswith("update_"):
             update_type = command.split("_")[1]
 
             if update_type == "firmware":
@@ -138,7 +140,11 @@ class Agent(object):
 
                 def _lock_and_update_agent(**kwargs):
                     with self.lock_thread:
-                        update_agent(mqtt_client=self.client, token=self.token)
+                        update_agent(
+                            mqtt_client=self.client, 
+                            token=self.token,
+                            experimental_enabled=self.configs["experimental_enabled"]
+                            )
 
                 agent_update_thread = Thread(target=_lock_and_update_agent,)
                 agent_update_thread.start()

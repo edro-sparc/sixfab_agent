@@ -1,5 +1,7 @@
+import os
 import time
 import logging
+from subprocess import Popen
 from pms_api.definitions import Definition
 from pms_api.event import Event
 from pms_api.exceptions import CRCCheckFailed
@@ -34,15 +36,67 @@ MAP_DAYS = {
 }
 
 MAP_ACTIONS = {
-    "start": 1,
-    "shutdown_hard": 2,
-    "shutdown_soft": 3,
-    "reboot_hard": 4,
-    "reboot_soft": 5,
+    "start": Definition.HARD_POWER_ON,
+    "shutdown_hard": Definition.HARD_POWER_OFF,
+    "shutdown_soft": Definition.SOFT_POWER_OFF,
+    "reboot_hard": Definition.HARD_REBOOT,
+    "reboot_soft": Definition.SOFT_REBOOT,
+    "start_soft" : Definition.SOFT_POWER_ON,    # newly added   
 }
 
 MAP_INTERVAL_TYPE = {"seconds": 1, "minutes": 2, "hours": 3}
 
+def update_experimental_status(**kwargs):
+    ENVIRONMENT_FILE="/opt/sixfab/.env"
+    REPOSITORIES = ("/opt/sixfab/pms/api", "/opt/sixfab/pms/agent", "/opt/sixfab/pms/firmwares")
+
+    if kwargs["current_status"] == kwargs["to_set"]:
+        return
+
+    if kwargs["to_set"] == True: # enable experimental version using
+        os.system(
+            """
+            if grep -q "EXPERIMENTAL" {ENVIRONMENT_FILE};
+            then
+                sudo sed -i 's/EXPERIMENTAL=False/EXPERIMENTAL=True/' {ENVIRONMENT_FILE}
+            else
+                echo 'EXPERIMENTAL=True' | sudo tee -a {ENVIRONMENT_FILE}
+            fi
+            """.format(ENVIRONMENT_FILE=ENVIRONMENT_FILE))
+
+        for repo in REPOSITORIES:
+            os.system(
+                """
+                cd {repo} &&
+                sudo git reset --hard &&
+                sudo git fetch &&
+                sudo git checkout dev &&
+                sudo git pull
+                """.format(repo=repo)
+            )
+    else:
+        os.system("sudo sed -i 's/EXPERIMENTAL=True/EXPERIMENTAL=False/' /opt/sixfab/.env")
+        os.system(
+            """
+            if grep -q "EXPERIMENTAL" {ENVIRONMENT_FILE};
+            then
+                sudo sed -i 's/EXPERIMENTAL=True/EXPERIMENTAL=False/' {ENVIRONMENT_FILE}
+            else
+                echo 'EXPERIMENTAL=True' | sudo tee -a {ENVIRONMENT_FILE}
+            fi
+            """.format(ENVIRONMENT_FILE=ENVIRONMENT_FILE))
+
+        for repo in REPOSITORIES:
+            os.system(
+                """
+                cd {repo} &&
+                sudo git reset --hard &&
+                sudo git checkout master &&
+                sudo git pull
+                """.format(repo=repo)
+            )
+
+    Popen("sleep 2 && sudo systemctl restart pms_agent", shell=True)
 
 def update_timezone(api, timezone):
     """
@@ -52,11 +106,11 @@ def update_timezone(api, timezone):
     operator, offset = timezone[3:4], timezone[4:]
 
     if timezone == "default":
-        try_until_done(api, "setRtcTime", (int(time.time())))
+        try_until_done(api, "setRtcTime", int(time.time() - time.timezone))
         return
 
     if ":" not in offset and offset == "0":
-        try_until_done(api, "setRtcTime", int(time.time() - time.timezone*-1))
+        try_until_done(api, "setRtcTime", int(time.time()))
         return
 
     offset_to_calculate = 0
@@ -73,15 +127,15 @@ def update_timezone(api, timezone):
     
 
     if operator == "+":
-        epoch_to_set = int(time.time() - time.timezone*-1) + offset_to_calculate
+        epoch_to_set = int(time.time()) + offset_to_calculate
     else:
-        epoch_to_set = int(time.time() - time.timezone*-1) - offset_to_calculate
+        epoch_to_set = int(time.time()) - offset_to_calculate
 
 
     try_until_done(api, "setRtcTime", epoch_to_set)
 
 
-def set_configurations(api, data):
+def set_configurations(api, data, **kwargs):
     update_timezone(api, data["timezone"])
 
     try_until_done(api, "setBatteryDesignCapacity", data["battery_capacity"])
@@ -110,7 +164,7 @@ def set_configurations(api, data):
                 data["scheduled"].remove(event)
 
     cloud_event_ids = [event["_id"] for event in data["scheduled"]]
-    local_event_ids = try_until_get(api.getScheduledEventIds)
+    local_event_ids = try_until_get(api, "getScheduledEventIds")
 
     s = set(cloud_event_ids)
     ids_to_delete = [x for x in local_event_ids if x not in s]
@@ -169,6 +223,12 @@ def set_configurations(api, data):
             )
 
             try_until_done(api, "createScheduledEventWithEvent", event_to_save)
+            
+    if "experimental" in data:
+        update_experimental_status(
+            to_set=data.get("experimental"),
+            current_status=kwargs["configs"].get("experimental_enabled")
+        )
 
     return True
 

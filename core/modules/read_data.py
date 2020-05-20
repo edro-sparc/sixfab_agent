@@ -1,7 +1,9 @@
-import logging
-import time
+import os
 import re
+import time
+import logging
 
+from subprocess import check_output
 from pms_api import SixfabPMS
 
 from .recovery import try_until_get
@@ -45,8 +47,29 @@ def read_data(api, **kwargs):
         else:
             return '0.0.0'
 
+    def get_api_version():
+        api_version_file_path = "/opt/sixfab/pms/api/setup.py"
+
+        if not os.path.exists(api_version_file_path):
+            return "0.0.0"
+
+        file_content = check_output(["sudo", "cat", api_version_file_path]).decode()
+
+        for line in file_content.split("\n"):
+            if "version" in line:
+                return (
+                        line.split("=")[1]
+                        .replace(",", "")
+                        .replace("'", "")
+                    )
+
+        return '0.0.0'
+    
+    #flags = []
+
     return {
         "timestamp": time.time(),
+        #"flags": flags,
         "charge_status": try_until_get(api, "getBatteryLevel"),
         "battery_healt": try_until_get(api, "getBatteryHealth"),
         "fanspeed": try_until_get(api, "getFanSpeed"),
@@ -75,6 +98,7 @@ def read_data(api, **kwargs):
         },
         "versions": {
             "firmware": firmware_version(),
-            "agent": kwargs.get("agent_version", "0.0.0")
+            "agent": kwargs.get("agent_version", "0.0.0"),
+            "api": get_api_version()
         }
     }
