@@ -49,13 +49,8 @@ class Agent(object):
         self.PMSAPI = SixfabPMS()
 
     def loop(self):
-        feeder = Thread(target=self.feeder)
-        feeder.start()
+        self.client.loop_start()
 
-        mqtt_loop = Thread(target=self.client.loop_start)
-        mqtt_loop.start()
-
-    def feeder(self):
         while True:
             if not self.is_connected:
                 time.sleep(1)
@@ -180,7 +175,7 @@ class Agent(object):
         print("Connected to the server")
         self.is_connected = True
 
-        self.client.subscribe("/device/{self.token}/directives")
+        self.client.subscribe(f"/device/{self.token}/directives")
         self.client.publish(
             f"/device/{self.token}/status",
             json.dumps({"connected": True}),
