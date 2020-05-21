@@ -1,10 +1,11 @@
 import time
 import json
 import logging
-from threading import Thread, Lock
-
 import paho.mqtt.client as mqtt
+
+from uuid import uuid4
 from pms_api import SixfabPMS
+from threading import Thread, Lock
 
 from .modules import *
 from .modules.set_configurations import update_timezone
@@ -19,11 +20,12 @@ class Agent(object):
     def __init__(
         self, token: str, configs: dict, lwt: bool = True, enable_feeder: bool = True,
     ):
-        client = mqtt.Client()
+        client = mqtt.Client(protocol=mqtt.MQTTv31, client_id=f"device/{uuid4().hex}")
         self.client = client
         self.token = token
         self.configs = configs
         self.PMSAPI = SixfabPMS()
+        self.is_connected = False
 
         self.lock_thread = Lock()
 
@@ -37,7 +39,7 @@ class Agent(object):
                 retain=True,
             )
 
-        client.connect(MQTT_HOST, MQTT_PORT, keepalive=30)
+        client.connect(MQTT_HOST, MQTT_PORT, keepalive=120)
         client.on_connect = self.__on_connect
         client.on_message = self.__on_message
         client.on_disconnect = self.__on_disconnect
@@ -47,14 +49,18 @@ class Agent(object):
         self.PMSAPI = SixfabPMS()
 
     def loop(self):
-        listener = Thread(target=self.client.loop_forever)
         feeder = Thread(target=self.feeder)
-
-        listener.start()
         feeder.start()
+
+        mqtt_loop = Thread(target=self.client.loop_start)
+        mqtt_loop.start()
 
     def feeder(self):
         while True:
+            if not self.is_connected:
+                time.sleep(1)
+                continue
+
             try:
                 logging.debug("[FEEDER] Starting, locking")
                 with self.lock_thread:
@@ -62,8 +68,7 @@ class Agent(object):
                         "/device/{token}/feed".format(token=self.token),
                         json.dumps(
                             read_data(
-                                self.PMSAPI, 
-                                agent_version=self.configs["version"]
+                                self.PMSAPI, agent_version=self.configs["version"]
                             )
                         ),
                     )
@@ -98,7 +103,7 @@ class Agent(object):
                     json.dumps({"connected": True}),
                     retain=True,
                 )
-            
+
         if COMMANDS.get(command, False):
             def _lock_and_execute_command():
                 with self.lock_thread:
@@ -108,15 +113,15 @@ class Agent(object):
 
                     if command == "configurations":
                         response = json.dumps({
-                                "command": "update_status_configurations",
-                                "commandID": commandID,
-                                "response": {"updated": True},
+                            "command": "update_status_configurations",
+                            "commandID": commandID,
+                            "response": {"updated": True},
                         })
                     else:
                         response = json.dumps({
-                                "command": command,
-                                "commandID": commandID,
-                                "response": executed_command_output,
+                            "command": command,
+                            "commandID": commandID,
+                            "response": executed_command_output,
                         })
 
                     self.client.publish(
@@ -141,10 +146,10 @@ class Agent(object):
                 def _lock_and_update_agent(**kwargs):
                     with self.lock_thread:
                         update_agent(
-                            mqtt_client=self.client, 
+                            mqtt_client=self.client,
                             token=self.token,
                             experimental_enabled=self.configs["experimental_enabled"]
-                            )
+                        )
 
                 agent_update_thread = Thread(target=_lock_and_update_agent,)
                 agent_update_thread.start()
@@ -156,7 +161,6 @@ class Agent(object):
                     with self.lock_thread:
                         logging.debug("Setting RTC time to " + command_data["timezone"])
                         update_timezone(self.PMSAPI, command_data["timezone"])
-
 
                 Thread(target=update_timezone_thread).start()
 
@@ -174,15 +178,18 @@ class Agent(object):
 
     def __on_connect(self, client, userdata, flags, rc):
         print("Connected to the server")
-        self.client.subscribe("/device/{userdata}/directives".format(userdata=userdata))
+        self.is_connected = True
+
+        self.client.subscribe("/device/{self.token}/directives")
         self.client.publish(
-            "/device/{userdata}/status".format(userdata=userdata),
+            f"/device/{self.token}/status",
             json.dumps({"connected": True}),
             retain=True,
         )
 
     def __on_disconnect(self, client, userdata, rc):
         print("Disconnected. Result Code: {rc}".format(rc=rc))
+        self.is_connected = False
 
     def __on_log(self, mqttc, obj, level, string):
         print(string)
