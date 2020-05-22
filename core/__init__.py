@@ -98,6 +98,8 @@ class Agent(object):
                     json.dumps({"connected": True}),
                     retain=True,
                 )
+            
+            return
 
         if COMMANDS.get(command, False):
             def _lock_and_execute_command():
@@ -176,6 +178,7 @@ class Agent(object):
         self.is_connected = True
 
         self.client.subscribe(f"/device/{self.token}/directives")
+        self.client.subscribe(f"/device/{self.token}/status")
         self.client.publish(
             f"/device/{self.token}/status",
             json.dumps({"connected": True}),
