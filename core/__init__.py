@@ -92,12 +92,15 @@ class Agent(object):
         command_data = message.get("data", {})
 
         if "connected" in message:
+            logging.error("\033[33m[CONNECTION] \033[0m status message recieved from broker")
             if not message["connected"]:
+                logging.error("\033[33m[CONNECTION] \033[0m looks like broker thinks we are disconnected, sending status message again")
                 self.client.publish(
                     "/device/{}/status".format(self.token),
                     json.dumps({"connected": True}),
                     retain=True,
                 )
+                logging.error("\033[33m[CONNECTION] \033[0m status changed to true")
             
             return
 
