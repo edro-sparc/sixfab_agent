@@ -12,7 +12,7 @@ __version__ = "0.1.6"
 # is_debugger_true = True if is_debugger_true == "True" else False
 is_debugger_true = True # debug is always enabled for now.
 
-logging.basicConfig(level=logging.DEBUG if is_debugger_true else logging.CRITICAL, filename='/home/pi/agent.log')
+logging.basicConfig(level=logging.DEBUG if is_debugger_true else logging.CRITICAL)
 environments = ConfigParser()
 environments.read("/opt/sixfab/.env")
 environments = environments["pms"]
