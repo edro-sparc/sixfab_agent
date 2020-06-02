@@ -21,7 +21,8 @@ configs = {
     "version": __version__,
     "feeder_interval": int(environments.get("INTERVAL", 10)),
     "experimental_enabled": True if environments.get("EXPERIMENTAL", False) == "True" else False,
-    "firmware_update_repository": "https://git.sixfab.com/sixfab-power/firmwares.git",
+    "environments": environments,
+    "firmware_update_repository": "https://git.sixfab.com/sixfab-power/firmwares.git"
 }
 
 if __name__ == "__main__":

@@ -20,7 +20,8 @@ class Agent(object):
     def __init__(
         self, token: str, configs: dict, lwt: bool = True, enable_feeder: bool = True,
     ):
-        client = mqtt.Client(protocol=mqtt.MQTTv31, client_id=f"device/{uuid4().hex}")
+        client = mqtt.Client(protocol=mqtt.MQTTv31,
+                             client_id=f"device/{uuid4().hex}")
         self.client = client
         self.token = token
         self.configs = configs
@@ -38,8 +39,12 @@ class Agent(object):
                 json.dumps({"connected": False}),
                 retain=True,
             )
-
-        client.connect(MQTT_HOST, MQTT_PORT, keepalive=120)
+            
+        client.connect(
+            configs["environments"].get("MQTT_HOST", MQTT_HOST),
+            MQTT_PORT,
+            keepalive=120
+        )
         client.on_connect = self.__on_connect
         client.on_message = self.__on_message
         client.on_disconnect = self.__on_disconnect
@@ -92,16 +97,19 @@ class Agent(object):
         command_data = message.get("data", {})
 
         if "connected" in message:
-            logging.error("\033[33m[CONNECTION] \033[0m status message recieved from broker")
+            logging.error(
+                "\033[33m[CONNECTION] \033[0m status message recieved from broker")
             if not message["connected"]:
-                logging.error("\033[33m[CONNECTION] \033[0m looks like broker thinks we are disconnected, sending status message again")
+                logging.error(
+                    "\033[33m[CONNECTION] \033[0m looks like broker thinks we are disconnected, sending status message again")
                 self.client.publish(
                     "/device/{}/status".format(self.token),
                     json.dumps({"connected": True}),
                     retain=True,
                 )
-                logging.error("\033[33m[CONNECTION] \033[0m status changed to true")
-            
+                logging.error(
+                    "\033[33m[CONNECTION] \033[0m status changed to true")
+
             return
 
         if COMMANDS.get(command, False):
@@ -125,7 +133,8 @@ class Agent(object):
                         })
 
                     self.client.publish(
-                        "/device/{userdata}/hive".format(userdata=userdata), response
+                        "/device/{userdata}/hive".format(
+                            userdata=userdata), response
                     )
 
             Thread(target=_lock_and_execute_command).start()
@@ -159,7 +168,8 @@ class Agent(object):
 
                 def update_timezone_thread():
                     with self.lock_thread:
-                        logging.debug("Setting RTC time to " + command_data["timezone"])
+                        logging.debug("Setting RTC time to " +
+                                      command_data["timezone"])
                         update_timezone(self.PMSAPI, command_data["timezone"])
 
                 Thread(target=update_timezone_thread).start()
