@@ -1,19 +1,21 @@
 import time
 import json
 import logging
+import subprocess
 import paho.mqtt.client as mqtt
 
 from uuid import uuid4
 from pms_api import SixfabPMS
+from typing import List
 from threading import Thread, Lock
 
 from .modules import *
 from .modules.set_configurations import update_timezone
 
+from .helpers.configs import config_object_to_string
+
 MQTT_HOST = "power.sixfab.com"
 MQTT_PORT = 1883
-
-COMMANDS = {"healthcheck": health_check, "configurations": set_configurations}
 
 
 class Agent(object):
@@ -39,7 +41,7 @@ class Agent(object):
                 json.dumps({"connected": False}),
                 retain=True,
             )
-            
+
         client.connect(
             configs["environments"].get("MQTT_HOST", MQTT_HOST),
             MQTT_PORT,
@@ -75,8 +77,24 @@ class Agent(object):
                 logging.debug("[FEEDER] Done, releasing setters")
 
                 time.sleep(self.configs["feeder_interval"])
+                print(self.configs["feeder_interval"])
             except:
                 time.sleep(1)
+
+    def _upsert_environments(self, items: List[tuple]):
+        """
+            Update environments for Power Management System
+            Params:
+                items: list, contains (key, value) pairs for every configurations to upsert 
+        """
+        environments = self.configs["environments_object"]
+
+        for key, value in items:
+            environments.set("pms", str(key), str(value))
+
+        subprocess.call(f"echo \"{config_object_to_string(environments)}\" | sudo tee /opt/sixfab/.env",
+                        shell=True, stdout=subprocess.DEVNULL)
+        return True
 
     def _lock_feeder_for_firmware_update(self):
         with self.lock_thread:
@@ -112,35 +130,35 @@ class Agent(object):
 
             return
 
-        if COMMANDS.get(command, False):
+        if command == "configurations":
             def _lock_and_execute_command():
+                if "interval" in command_data:
+                    new_feeder_interval = command_data["interval"]
+                    self.configs["feeder_interval"] = new_feeder_interval
+                    self._upsert_environments(
+                        [('interval', new_feeder_interval)])
+
                 with self.lock_thread:
-                    executed_command_output = COMMANDS[command](
+                    is_configured = set_configurations(
                         self.PMSAPI, command_data, configs=self.configs
                     )
 
-                    if command == "configurations":
+                    if is_configured:
                         response = json.dumps({
                             "command": "update_status_configurations",
                             "commandID": commandID,
                             "response": {"updated": True},
                         })
-                    else:
-                        response = json.dumps({
-                            "command": command,
-                            "commandID": commandID,
-                            "response": executed_command_output,
-                        })
 
-                    self.client.publish(
-                        "/device/{userdata}/hive".format(
-                            userdata=userdata), response
-                    )
+                        self.client.publish(
+                            "/device/{userdata}/hive".format(
+                                userdata=userdata), response
+                        )
 
             Thread(target=_lock_and_execute_command).start()
             return
 
-        if command and command.startswith("update_"):
+        elif command and command.startswith("update_"):
             update_type = command.split("_")[1]
 
             if update_type == "firmware":
