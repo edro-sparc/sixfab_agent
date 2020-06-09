@@ -98,19 +98,20 @@ def update_experimental_status(**kwargs):
 
     Popen("sleep 2 && sudo systemctl restart pms_agent", shell=True)
 
-def update_timezone(api, timezone):
+def update_timezone(api, timezone, unix_time=None):
     """
         timezone format: UTC[operator][offset]
         example: UTC+9, UTC-3, UTC+6:45
     """
     operator, offset = timezone[3:4], timezone[4:]
+    get_unix_time = lambda: time.time() if not unix_time else unix_time
 
     if timezone == "default":
-        try_until_done(api, "setRtcTime", int(time.time() - time.timezone))
+        try_until_done(api, "setRtcTime", int(get_unix_time() - time.timezone))
         return
 
     if ":" not in offset and offset == "0":
-        try_until_done(api, "setRtcTime", int(time.time()))
+        try_until_done(api, "setRtcTime", int(get_unix_time()))
         return
 
     offset_to_calculate = 0
@@ -127,9 +128,9 @@ def update_timezone(api, timezone):
     
 
     if operator == "+":
-        epoch_to_set = int(time.time()) + offset_to_calculate
+        epoch_to_set = int(get_unix_time()) + offset_to_calculate
     else:
-        epoch_to_set = int(time.time()) - offset_to_calculate
+        epoch_to_set = int(get_unix_time()) - offset_to_calculate
 
 
     try_until_done(api, "setRtcTime", epoch_to_set)

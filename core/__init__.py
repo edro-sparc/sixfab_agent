@@ -13,6 +13,7 @@ from .modules import *
 from .modules.set_configurations import update_timezone
 
 from .helpers.configs import config_object_to_string
+from .helpers import ntp
 
 MQTT_HOST = "power.sixfab.com"
 MQTT_PORT = 1883
@@ -183,12 +184,22 @@ class Agent(object):
                 return
 
             elif update_type == "rtc":
+                
+                while True:
+                    try:
+                        ntp_utc0 = ntp.get_utc0()
+                        if ntp_utc0:
+                            break
+                    except:
+                        pass
+                
+                subprocess.call(f"sudo date -s '{time.ctime(ntp_utc0)}'", shell=True, stdout=subprocess.DEVNULL)
 
                 def update_timezone_thread():
                     with self.lock_thread:
                         logging.debug("Setting RTC time to " +
                                       command_data["timezone"])
-                        update_timezone(self.PMSAPI, command_data["timezone"])
+                        update_timezone(self.PMSAPI, command_data["timezone"], unix_time=ntp_utc0)
 
                 Thread(target=update_timezone_thread).start()
 
