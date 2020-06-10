@@ -98,7 +98,7 @@ def update_experimental_status(**kwargs):
 
     Popen("sleep 2 && sudo systemctl restart pms_agent", shell=True)
 
-def update_timezone(api, timezone, unix_time=None):
+def update_timezone(api, timezone):
     """
         timezone format: UTC[operator][offset]
         example: UTC+9, UTC-3, UTC+6:45

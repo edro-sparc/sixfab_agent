@@ -13,7 +13,6 @@ from .modules import *
 from .modules.set_configurations import update_timezone
 
 from .helpers.configs import config_object_to_string
-from .helpers import ntp
 
 MQTT_HOST = "power.sixfab.com"
 MQTT_PORT = 1883
