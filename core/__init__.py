@@ -97,6 +97,23 @@ class Agent(object):
                         shell=True, stdout=subprocess.DEVNULL)
         return True
 
+    def _wait_ntp_and_update_rtc(self, timezone):
+        while True:
+            is_ntp_synchronized = subprocess.check_output(["timedatectl"]).decode()
+            is_ntp_synchronized = is_ntp_synchronized[is_ntp_synchronized.find("synchronized: ")+14:]
+            is_ntp_synchronized = is_ntp_synchronized[:is_ntp_synchronized.find("\n")]
+
+            if is_ntp_synchronized == 'yes':
+                logging.debug("NTP synchronized, updating timezone")
+
+                with self.lock_thread:
+                    logging.debug("Setting RTC timezone to " + timezone)
+                    update_timezone(self.PMSAPI, timezone)
+
+                return True
+            logging.debug("Waiting for NTP synchronization")
+            time.sleep(15)
+
     def _lock_feeder_for_firmware_update(self):
         with self.lock_thread:
             update_firmware(
@@ -184,24 +201,7 @@ class Agent(object):
                 return
 
             elif update_type == "rtc":
-                
-                while True:
-                    try:
-                        ntp_utc0 = ntp.get_utc0()
-                        if ntp_utc0:
-                            break
-                    except:
-                        pass
-                
-                subprocess.call(f"sudo date -s '{time.ctime(ntp_utc0)}'", shell=True, stdout=subprocess.DEVNULL)
-
-                def update_timezone_thread():
-                    with self.lock_thread:
-                        logging.debug("Setting RTC time to " +
-                                      command_data["timezone"])
-                        update_timezone(self.PMSAPI, command_data["timezone"], unix_time=ntp_utc0)
-
-                Thread(target=update_timezone_thread).start()
+                Thread(target=self._wait_ntp_and_update_rtc, args=(command_data["timezone"],)).start()
 
         else:
             response = json.dumps(
