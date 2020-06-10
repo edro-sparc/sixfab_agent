@@ -87,7 +87,7 @@ def update_agent(**kwargs):
                 {'&& sudo git fetch && sudo git checkout dev' if experimental_enabled else ''} 
                 && sudo git pull
                 && sudo pip3 install -r requirements.txt 
-    """)
+    """.replace("\n", ""))
 
     os.system(f"""
                 cd /opt/sixfab/pms/api 
@@ -96,7 +96,7 @@ def update_agent(**kwargs):
                 && sudo git pull 
                 && sudo pip3 install -r requirements.txt 
                 && pip3 install .
-    """)
+    """.replace("\n", ""))
     
     send_status("restart")
 
