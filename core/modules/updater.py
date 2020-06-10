@@ -86,6 +86,7 @@ def update_agent(**kwargs):
                 && sudo git reset --hard HEAD 
                 {'&& sudo git fetch && sudo git checkout dev' if experimental_enabled else ''} 
                 && sudo git pull
+                && sudo pip3 install -r requirements.txt 
     """)
 
     os.system(f"""
