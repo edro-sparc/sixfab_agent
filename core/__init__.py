@@ -231,4 +231,4 @@ class Agent(object):
         self.is_connected = False
 
     def __on_log(self, mqttc, obj, level, string):
-        print(string)
+        print(string.replace(obj, "...censored_uuid..."))
