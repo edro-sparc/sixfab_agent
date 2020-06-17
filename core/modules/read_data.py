@@ -9,25 +9,9 @@ from pms_api import SixfabPMS
 from .recovery import try_until_get
 
 def read_data(api, **kwargs):
-
-    api.softPowerOff()
-    api.softReboot()
-    api.sendSystemTemp()
-
     def fan_health():
         response = try_until_get(api, "getFanHealth")
         responses = {0: None, 1: True, 2: False}
-
-        return responses[response]
-
-    def working_mode():
-        response = try_until_get(api, "getWorkingMode")
-        responses = {
-            0: "n/a",
-            1: "Charging",
-            2: "Fully Charged - Adapter Powered",
-            3: "Battery Powered",
-        }
 
         return responses[response]
 
