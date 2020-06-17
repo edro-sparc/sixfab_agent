@@ -22,7 +22,6 @@ def try_until_get(api, function):
         except Exception as e:
             logging.error("\033[33m[{}] \033[0m unknown exception raised".format(function))
         else:
-            logging.debug("\033[94m[{}] \033[0m done".format(function))
             return resp
         finally:
             try_count += 1
@@ -51,7 +50,6 @@ def try_until_done(api, function, *args, **kwargs):
         except Exception as e:
             logging.error("\033[33m[{}] \033[0m unknown exception raised".format(function))
         else:
-            logging.debug("\033[94m[{}] \033[0m Function executed success".format(function))
             return resp
         finally:
             try_count += 1
