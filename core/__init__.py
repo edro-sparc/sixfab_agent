@@ -13,6 +13,7 @@ from .modules import *
 from .modules.set_configurations import update_timezone
 
 from .helpers.configs import config_object_to_string
+from .helpers import network
 
 MQTT_HOST = "power.sixfab.com"
 MQTT_PORT = 1883
@@ -42,11 +43,6 @@ class Agent(object):
                 retain=True,
             )
 
-        client.connect(
-            configs["environments"].get("MQTT_HOST", MQTT_HOST),
-            MQTT_PORT,
-            keepalive=120
-        )
         client.on_connect = self.__on_connect
         client.on_message = self.__on_message
         client.on_disconnect = self.__on_disconnect
@@ -56,8 +52,44 @@ class Agent(object):
         self.PMSAPI = SixfabPMS()
 
     def loop(self):
-        self.client.loop_start()
+        ping_addr = "power.sixfab.com"
+        ping_host = None
 
+        Thread(target=self.routine_worker).start()
+        Thread(target=self.feeder_worker).start()
+
+        while True:
+            if network.is_network_available(ping_host or ping_addr):
+
+                if not ping_host:
+                    ping_host = network.get_host_by_addr(ping_addr)
+
+                if not self.is_connected:
+                    logging.debug("[LOOP] Network online, starting mqtt agent")
+                    self.client.connect(
+                        self.configs["environments"].get("MQTT_HOST", MQTT_HOST),
+                        MQTT_PORT,
+                        keepalive=30
+                    )
+                    self.client.loop_start()
+                    self.is_connected = True
+
+                time.sleep(30)
+            else:
+                if ping_host:
+                    ping_host = None
+                    continue
+
+                if self.is_connected:
+                    logging.debug("[LOOP] Network ofline, blocking mqtt agent")
+                    self.is_connected = False
+                    self.client.loop_stop()
+                    self.client.disconnect()
+
+                time.sleep(10)
+
+    def feeder_worker(self):
+        """ Feeds cloud with sensor datas """
         while True:
             if not self.is_connected:
                 time.sleep(1)
@@ -77,9 +109,18 @@ class Agent(object):
                 logging.debug("[FEEDER] Done, releasing setters")
 
                 time.sleep(self.configs["feeder_interval"])
-                print(self.configs["feeder_interval"])
             except:
                 time.sleep(1)
+
+    def routine_worker(self):
+        while True:
+            with self.lock_thread:
+                self.PMSAPI.softPowerOff()
+                self.PMSAPI.softReboot()
+                self.PMSAPI.sendSystemTemp()
+                logging.debug("[ROUTINE WORKER] Metrics sent to hat")
+
+            time.sleep(15)
 
     def _upsert_environments(self, items: List[tuple]):
         """
@@ -98,9 +139,12 @@ class Agent(object):
 
     def _wait_ntp_and_update_rtc(self, timezone):
         while True:
-            is_ntp_synchronized = subprocess.check_output(["timedatectl"]).decode()
-            is_ntp_synchronized = is_ntp_synchronized[is_ntp_synchronized.find("synchronized: ")+14:]
-            is_ntp_synchronized = is_ntp_synchronized[:is_ntp_synchronized.find("\n")]
+            is_ntp_synchronized = subprocess.check_output(
+                ["timedatectl"]).decode()
+            is_ntp_synchronized = is_ntp_synchronized[is_ntp_synchronized.find(
+                "synchronized: ")+14:]
+            is_ntp_synchronized = is_ntp_synchronized[:is_ntp_synchronized.find(
+                "\n")]
 
             if is_ntp_synchronized == 'yes':
                 logging.debug("NTP synchronized, updating timezone")
@@ -200,7 +244,8 @@ class Agent(object):
                 return
 
             elif update_type == "rtc":
-                Thread(target=self._wait_ntp_and_update_rtc, args=(command_data["timezone"],)).start()
+                Thread(target=self._wait_ntp_and_update_rtc,
+                       args=(command_data["timezone"],)).start()
 
         else:
             response = json.dumps(
