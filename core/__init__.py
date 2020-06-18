@@ -115,10 +115,14 @@ class Agent(object):
     def routine_worker(self):
         while True:
             with self.lock_thread:
-                self.PMSAPI.softPowerOff()
-                self.PMSAPI.softReboot()
-                self.PMSAPI.sendSystemTemp()
-                logging.debug("[ROUTINE WORKER] Metrics sent to hat")
+                try:
+                    self.PMSAPI.softPowerOff()
+                    self.PMSAPI.softReboot()
+                    self.PMSAPI.sendSystemTemp()
+                except Exception as e:
+                    logging.debug("[ROUTINE WORKER] Error occured, trying again in 15secs")
+                else:
+                    logging.debug("[ROUTINE WORKER] Metrics sent to hat")
 
             time.sleep(15)
 
