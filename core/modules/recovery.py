@@ -3,30 +3,32 @@ import logging
 from pms_api import SixfabPMS
 from pms_api.exceptions import CRCCheckFailed
 
+logger = logging.getLogger("agent")
+
 def try_until_get(api, function):
     try_count = 1
     while True:
         if try_count > 5:
-            logging.error("\033[33m[{}] \033[0m tried for 3 times and couldn't get response".format(function))
+            logger.error("[{}] tried for 3 times and couldn't get response".format(function))
             raise OverflowError("")
 
         try:
             resp = getattr(api, function)()
         except CRCCheckFailed:
-            logging.error("\033[33m[{}] \033[0m crc check failed, reinitializing api".format(function))
+            logger.error("[{}] crc check failed, reinitializing api".format(function))
             del api
             api = SixfabPMS()
         except TypeError:
-            logging.error("\033[33m[{}] \033[0m TypeError raised, clearing pipe".format(function))
+            logger.error("[{}] TypeError raised, clearing pipe".format(function))
             api.clearPipe()
         except Exception as e:
-            logging.error("\033[33m[{}] \033[0m unknown exception raised".format(function))
+            logger.error("[{}] unknown exception raised".format(function))
         else:
             return resp
         finally:
             try_count += 1
             
-        logging.error("[{}] trying again".format(function))
+        logger.error("[{}] trying again".format(function))
         time.sleep(0.5)
 
 
@@ -35,25 +37,25 @@ def try_until_done(api, function, *args, **kwargs):
 
     while True:
         if try_count > 5:
-            logging.error("\033[33m[{}] \033[0m tried for 3 times and couldn't get response".format(function))
+            logger.error("[{}] tried for 3 times and couldn't get response".format(function))
             raise OverflowError("")
         
         try:
             resp = getattr(api, function)(*args, **kwargs)
         except CRCCheckFailed:
-            logging.error("\033[33m[{}] \033[0m crc check failed, reinitializing api".format(function))
+            logger.error("[{}] crc check failed, reinitializing api".format(function))
             del api
             api = SixfabPMS()
         except TypeError:
-            logging.error("\033[33m[{}] \033[0m TypeError raised, clearing pipe".format(function))
+            logger.error("[{}] TypeError raised, clearing pipe".format(function))
             api.clearPipe()
         except Exception as e:
-            logging.error("\033[33m[{}] \033[0m unknown exception raised".format(function))
+            logger.error("[{}] unknown exception raised".format(function))
         else:
             return resp
         finally:
             try_count += 1
 
 
-        logging.error("[{}] trying again".format(function))
+        logger.error("[{}] trying again".format(function))
         time.sleep(0.5)
