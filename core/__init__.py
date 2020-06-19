@@ -16,22 +16,12 @@ from .modules.set_configurations import update_timezone
 
 from .helpers.configs import config_object_to_string
 from .helpers import network
+from .helpers.logger import initialize_logger
 
 MQTT_HOST = "power.sixfab.com"
 MQTT_PORT = 1883
 
-logging_file_path = os.path.expanduser("~")+"/.sixfab/"
-
-if not os.path.exists(logging_file_path):
-    os.mkdir(logging_file_path)
-
-logger = logging.getLogger("agent")
-
-formatter = logging.Formatter("%(asctime)s %(levelname)-8s %(message)s")
-log_file_handler = logging.handlers.TimedRotatingFileHandler(filename=logging_file_path+"agent.log", when="midnight", backupCount=3)
-log_file_handler.setFormatter(formatter)
-
-logger.addHandler(log_file_handler)
+logger = initialize_logger()
 
 class Agent(object):
     def __init__(
@@ -194,17 +184,17 @@ class Agent(object):
         command_data = message.get("data", {})
 
         if "connected" in message:
-            logger.error(
+            logger.info(
                 "[CONNECTION] status message recieved from broker")
             if not message["connected"]:
-                logger.error(
+                logger.warning(
                     "[CONNECTION] looks like broker thinks we are disconnected, sending status message again")
                 self.client.publish(
                     "/device/{}/status".format(self.token),
                     json.dumps({"connected": True}),
                     retain=True,
                 )
-                logger.error(
+                logger.info(
                     "[CONNECTION] status changed to true")
 
             return
