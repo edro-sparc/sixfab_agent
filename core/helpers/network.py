@@ -13,4 +13,9 @@ def is_network_available(host: str, size: int=0) -> bool:
     return False
 
 def get_host_by_addr(addr: str) -> str:
-    return socket.gethostbyaddr(addr)[2][0]
+    try:
+        host = socket.gethostbyaddr(addr)[2][0]
+    except Exception as e:
+        host = None
+        
+    return host
