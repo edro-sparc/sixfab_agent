@@ -1,6 +1,8 @@
+import os
 import time
 import json
 import logging
+import logging.handlers
 import subprocess
 import paho.mqtt.client as mqtt
 
@@ -14,10 +16,12 @@ from .modules.set_configurations import update_timezone
 
 from .helpers.configs import config_object_to_string
 from .helpers import network
+from .helpers.logger import initialize_logger
 
 MQTT_HOST = "power.sixfab.com"
 MQTT_PORT = 1883
 
+logger = initialize_logger()
 
 class Agent(object):
     def __init__(
@@ -65,7 +69,7 @@ class Agent(object):
                     ping_host = network.get_host_by_addr(ping_addr)
 
                 if not self.is_connected:
-                    logging.debug("[LOOP] Network online, starting mqtt agent")
+                    logger.debug("[LOOP] Network online, starting mqtt agent")
                     self.client.connect(
                         self.configs["environments"].get("MQTT_HOST", MQTT_HOST),
                         MQTT_PORT,
@@ -81,7 +85,7 @@ class Agent(object):
                     continue
 
                 if self.is_connected:
-                    logging.debug("[LOOP] Network ofline, blocking mqtt agent")
+                    logger.debug("[LOOP] Network ofline, blocking mqtt agent")
                     self.is_connected = False
                     self.client.loop_stop()
                     self.client.disconnect()
@@ -96,7 +100,7 @@ class Agent(object):
                 continue
 
             try:
-                logging.debug("[FEEDER] Starting, locking")
+                logger.debug("[FEEDER] Starting, locking")
                 with self.lock_thread:
                     self.client.publish(
                         "/device/{token}/feed".format(token=self.token),
@@ -106,7 +110,7 @@ class Agent(object):
                             )
                         ),
                     )
-                logging.debug("[FEEDER] Done, releasing setters")
+                logger.debug("[FEEDER] Done, releasing setters")
 
                 time.sleep(self.configs["feeder_interval"])
             except:
@@ -120,9 +124,9 @@ class Agent(object):
                     self.PMSAPI.softReboot()
                     self.PMSAPI.sendSystemTemp()
                 except Exception as e:
-                    logging.debug("[ROUTINE WORKER] Error occured, trying again in 15secs")
+                    logger.debug("[ROUTINE WORKER] Error occured, trying again in 15secs")
                 else:
-                    logging.debug("[ROUTINE WORKER] Metrics sent to hat")
+                    logger.debug("[ROUTINE WORKER] Metrics sent to hat")
 
             time.sleep(15)
 
@@ -151,14 +155,14 @@ class Agent(object):
                 "\n")]
 
             if is_ntp_synchronized == 'yes':
-                logging.debug("NTP synchronized, updating timezone")
+                logger.debug("NTP synchronized, updating timezone")
 
                 with self.lock_thread:
-                    logging.debug("Setting RTC timezone to " + timezone)
+                    logger.debug("Setting RTC timezone to " + timezone)
                     update_timezone(self.PMSAPI, timezone)
 
                 return True
-            logging.debug("Waiting for NTP synchronization")
+            logger.debug("Waiting for NTP synchronization")
             time.sleep(15)
 
     def _lock_feeder_for_firmware_update(self):
@@ -180,18 +184,18 @@ class Agent(object):
         command_data = message.get("data", {})
 
         if "connected" in message:
-            logging.error(
-                "\033[33m[CONNECTION] \033[0m status message recieved from broker")
+            logger.info(
+                "[CONNECTION] status message recieved from broker")
             if not message["connected"]:
-                logging.error(
-                    "\033[33m[CONNECTION] \033[0m looks like broker thinks we are disconnected, sending status message again")
+                logger.warning(
+                    "[CONNECTION] looks like broker thinks we are disconnected, sending status message again")
                 self.client.publish(
                     "/device/{}/status".format(self.token),
                     json.dumps({"connected": True}),
                     retain=True,
                 )
-                logging.error(
-                    "\033[33m[CONNECTION] \033[0m status changed to true")
+                logger.info(
+                    "[CONNECTION] status changed to true")
 
             return
 
