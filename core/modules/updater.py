@@ -11,6 +11,7 @@ def update_firmware(**kwargs):
     token = kwargs.get("token")
     remote_repository = kwargs.get("repository", None)
     mqtt_client = kwargs.get("mqtt_client", None)
+    experimental_enabled = kwargs.get("experimental_enabled", False)
 
     def send_status(status):
         mqtt_client.publish(
@@ -23,9 +24,9 @@ def update_firmware(**kwargs):
 
     send_status("git")
     if os.path.exists(LOCAL_FIRMWARE_FOLDER):
-        os.system(f"cd {LOCAL_FIRMWARE_FOLDER} && sudo git pull")
+        os.system(f"cd {LOCAL_FIRMWARE_FOLDER} {'&& sudo git fetch && sudo git checkout dev' if experimental_enabled else ''} && sudo git pull")
     else:
-        os.system(f"sudo git clone {remote_repository} {LOCAL_FIRMWARE_FOLDER}")
+        os.system(f"sudo git clone {remote_repository} {LOCAL_FIRMWARE_FOLDER} {'&& sudo git fetch && sudo git checkout dev' if experimental_enabled else ''}")
 
     latest_version = open(f"{LOCAL_FIRMWARE_FOLDER}/latest_version").read().strip()
     latest_firmware = f"{LOCAL_FIRMWARE_FOLDER}/sixfab_pms_firmware_{latest_version}.bin"
@@ -67,6 +68,7 @@ def update_firmware(**kwargs):
 def update_agent(**kwargs):
     mqtt_client = kwargs.get("mqtt_client")
     token = kwargs.get("token")
+    experimental_enabled = kwargs.get("experimental_enabled", False)
 
     def send_status(status):
         mqtt_client.publish(
@@ -79,8 +81,23 @@ def update_agent(**kwargs):
     
     send_status("git")
 
-    os.system("cd /opt/sixfab/pms/agent && sudo git reset --hard HEAD && sudo git pull")
-    os.system("cd /opt/sixfab/pms/api && sudo git reset --hard HEAD && sudo git pull && sudo pip3 install -r requirements.txt && pip3 install .")
+    os.system(f"""
+                cd /opt/sixfab/pms/agent 
+                && sudo git reset --hard HEAD 
+                {'&& sudo git fetch && sudo git checkout dev' if experimental_enabled else ''} 
+                && sudo git pull
+                && sudo pip3 install -r requirements.txt 
+    """.replace("\n", ""))
+
+    os.system(f"""
+                cd /opt/sixfab/pms/api 
+                && sudo git reset --hard HEAD 
+                {'&& sudo git fetch && sudo git checkout dev' if experimental_enabled else ''} 
+                && sudo git pull 
+                && sudo pip3 install -r requirements.txt 
+                && pip3 install .
+    """.replace("\n", ""))
+    
     send_status("restart")
 
     os.system("sudo systemctl restart pms_agent")

@@ -1,5 +1,7 @@
+import os
 import time
 import logging
+from subprocess import Popen
 from pms_api.definitions import Definition
 from pms_api.event import Event
 from pms_api.exceptions import CRCCheckFailed
@@ -44,6 +46,57 @@ MAP_ACTIONS = {
 
 MAP_INTERVAL_TYPE = {"seconds": 1, "minutes": 2, "hours": 3}
 
+def update_experimental_status(**kwargs):
+    ENVIRONMENT_FILE="/opt/sixfab/.env"
+    REPOSITORIES = ("/opt/sixfab/pms/api", "/opt/sixfab/pms/agent", "/opt/sixfab/pms/firmwares")
+
+    if kwargs["current_status"] == kwargs["to_set"]:
+        return
+
+    if kwargs["to_set"] == True: # enable experimental version using
+        os.system(
+            """
+            if grep -q "EXPERIMENTAL" {ENVIRONMENT_FILE};
+            then
+                sudo sed -i 's/EXPERIMENTAL=False/EXPERIMENTAL=True/' {ENVIRONMENT_FILE}
+            else
+                echo 'EXPERIMENTAL=True' | sudo tee -a {ENVIRONMENT_FILE}
+            fi
+            """.format(ENVIRONMENT_FILE=ENVIRONMENT_FILE))
+
+        for repo in REPOSITORIES:
+            os.system(
+                """
+                cd {repo} &&
+                sudo git reset --hard &&
+                sudo git fetch &&
+                sudo git checkout dev &&
+                sudo git pull
+                """.format(repo=repo)
+            )
+    else:
+        os.system("sudo sed -i 's/EXPERIMENTAL=True/EXPERIMENTAL=False/' /opt/sixfab/.env")
+        os.system(
+            """
+            if grep -q "EXPERIMENTAL" {ENVIRONMENT_FILE};
+            then
+                sudo sed -i 's/EXPERIMENTAL=True/EXPERIMENTAL=False/' {ENVIRONMENT_FILE}
+            else
+                echo 'EXPERIMENTAL=True' | sudo tee -a {ENVIRONMENT_FILE}
+            fi
+            """.format(ENVIRONMENT_FILE=ENVIRONMENT_FILE))
+
+        for repo in REPOSITORIES:
+            os.system(
+                """
+                cd {repo} &&
+                sudo git reset --hard &&
+                sudo git checkout master &&
+                sudo git pull
+                """.format(repo=repo)
+            )
+
+    Popen("sleep 2 && sudo systemctl restart pms_agent", shell=True)
 
 def update_timezone(api, timezone):
     """
@@ -82,7 +135,7 @@ def update_timezone(api, timezone):
     try_until_done(api, "setRtcTime", epoch_to_set)
 
 
-def set_configurations(api, data):
+def set_configurations(api, data, **kwargs):
     update_timezone(api, data["timezone"])
 
     try_until_done(api, "setBatteryDesignCapacity", data["battery_capacity"])
@@ -170,6 +223,12 @@ def set_configurations(api, data):
             )
 
             try_until_done(api, "createScheduledEventWithEvent", event_to_save)
+            
+    if "experimental" in data:
+        update_experimental_status(
+            to_set=data.get("experimental"),
+            current_status=kwargs["configs"].get("experimental_enabled")
+        )
 
     return True
 
