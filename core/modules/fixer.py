@@ -15,3 +15,4 @@ def execute_fix(name, command):
 
 # change old service file with new one
 execute_fix("3004-service-file", r'printf "[Unit]\nDescription=Sixfab PMS Agent\nAfter=network.target network-online.target\nRequires=network-online.target\n\n[Service]\nExecStart=/usr/bin/python3 -u agent.py\nWorkingDirectory=/opt/sixfab/pms/agent\nStandardOutput=inherit\nStandardError=inherit\nRestart=always\nRestartSec=3\nUser=pi\n\n[Install]\nWantedBy=multi-user.target" | sudo tee /etc/systemd/system/pms_agent.service && sudo systemctl daemon-reload && sudo systemctl restart pms_agent')
+# execute_fix("10.07.2020-distribution-service", "TODO")
