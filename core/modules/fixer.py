@@ -15,7 +15,7 @@ def execute_fix(name, command):
 
 # change old service file with new one
 execute_fix("3004-service-file", r'printf "[Unit]\nDescription=Sixfab PMS Agent\nAfter=network.target network-online.target\nRequires=network-online.target\n\n[Service]\nExecStart=/usr/bin/python3 -u agent.py\nWorkingDirectory=/opt/sixfab/pms/agent\nStandardOutput=inherit\nStandardError=inherit\nRestart=always\nRestartSec=3\nUser=pi\n\n[Install]\nWantedBy=multi-user.target" | sudo tee /etc/systemd/system/pms_agent.service && sudo systemctl daemon-reload && sudo systemctl restart pms_agent')
-execute_fix("10.07.2020-distribution-service", r"""pip3 install -U sixfab-power-python-api;API_LOCATION=$(cd /opt/sixfab/pms/api&&sudo git remote show origin);if [[ $API_LOCATION == *"sixfab.com/sixfab-power/api"* ]];then sudo rm -r /opt/sixfab/pms/api;sudo git clone https://github.com/sixfab/power_distribution-service.git /opt/sixfab/pms/api;pip3 install -r /opt/sixfab/pms/api/requirements.txt;sudo touch /etc/systemd/system/sixfab_power_api.service;echo "[Unit]
+execute_fix("10.07.2020-distribution-service", r"""pip3 uninstall sixfab-power-python-api; sudo pip3 uninstall sixfab-power-python-api; pip3 install -U sixfab-power-python-api;API_LOCATION=$(cd /opt/sixfab/pms/api&&sudo git remote show origin);if [[ $API_LOCATION == *"sixfab.com/sixfab-power/api"* ]];then sudo rm -r /opt/sixfab/pms/api;sudo git clone https://github.com/sixfab/power_distribution-service.git /opt/sixfab/pms/api;pip3 install -r /opt/sixfab/pms/api/requirements.txt;sudo touch /etc/systemd/system/sixfab_power_api.service;echo "[Unit]
 Description=Sixfab UPS HAT Distributed API
 
 [Service]
