@@ -1,4 +1,4 @@
-from . import fixer
+import fixer
 import os
 
 from core import Agent
