@@ -1,7 +1,7 @@
+from core.modules import fixer
 import os
 
 from core import Agent
-from core.modules import fixer
 from configparser import ConfigParser
 
 __version__ = "0.2.2"
