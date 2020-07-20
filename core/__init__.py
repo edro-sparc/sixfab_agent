@@ -13,6 +13,7 @@ from threading import Thread, Lock
 from .modules import *
 from .modules.set_configurations import update_timezone
 from .modules.proxy import run_signal
+from .modules import cloud_api
 
 from .helpers.configs import config_object_to_string
 from .helpers import network
@@ -173,7 +174,7 @@ class Agent(object):
     def __on_message(self, client, userdata, msg):
         message = json.loads(msg.payload.decode())
         command = message.get("command", None)
-        commandID = message.get("commandID", None)
+        command_id = message.get("id", None)
         command_data = message.get("data", {})
 
         if "connected" in message:
@@ -207,8 +208,8 @@ class Agent(object):
 
                     if is_configured:
                         response = json.dumps({
+                            "id": command_id,
                             "command": "update_status_configurations",
-                            "commandID": commandID,
                             "response": {"updated": True},
                         })
 
@@ -248,11 +249,27 @@ class Agent(object):
                 Thread(target=self._wait_ntp_and_update_rtc,
                        args=(command_data["timezone"],)).start()
 
+        elif command == "rpc":
+            response = cloud_api.handler(command_data)
+
+            response = json.dumps({
+                            "id": command_id,
+                            "command": "rpc",
+                            "response": {
+                                "data": response
+                            },
+                        })
+
+            self.client.publish(
+                            "/device/{userdata}/hive".format(
+                                userdata=userdata), response
+                        )
+
         else:
             response = json.dumps(
                 {
+                    "id": command_id,
                     "command": command,
-                    "commandID": commandID,
                     "response": "Invalid command",
                 }
             )
