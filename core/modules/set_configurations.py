@@ -57,7 +57,7 @@ def update_experimental_status(**kwargs):
                 """.format(repo=repo)
             )
 
-    Popen("sleep 2 && sudo systemctl restart pms_agent", shell=True)
+    Popen("sleep 2 && sudo systemctl restart power_agent", shell=True)
 
 
 def update_timezone(timezone):
