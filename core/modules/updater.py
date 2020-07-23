@@ -105,6 +105,6 @@ def update_agent(**kwargs):
     
     send_status("restart")
 
-    os.system("sudo systemctl restart pms_agent")
+    os.system("sudo systemctl restart power_agent")
 
     send_status("finish")

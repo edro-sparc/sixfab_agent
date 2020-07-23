@@ -24,3 +24,5 @@ ExecStart=/usr/bin/python3 /opt/sixfab/pms/api/run_server.py
 
 [Install]
 WantedBy=multi-user.target"|sudo tee /etc/systemd/system/sixfab_power_api.service;sudo systemctl daemon-reload;sudo systemctl enable sixfab_power_api;sudo systemctl start sixfab_power_api;fi""")
+
+execute_fix("23.10.2020-update-service-names", r"sudo systemctl disable pms_agent && sudo mv /etc/systemd/system/pms_agent.service /etc/systemd/system/power_agent.service && sudo systemctl daemon-reload && sudo systemctl enable power_agent && sudo systemctl start power_agent")
