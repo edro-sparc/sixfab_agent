@@ -2,12 +2,12 @@ import os
 import re
 import json
 
-from .recovery import try_until_get
+from power_api import SixfabPower
+from .proxy import get_metric, lock_distribution_service, release_distribution_service
 
 LOCAL_FIRMWARE_FOLDER = '/opt/sixfab/pms/firmwares'
 
 def update_firmware(**kwargs):
-    api = kwargs.get('api')
     token = kwargs.get("token")
     remote_repository = kwargs.get("repository", None)
     mqtt_client = kwargs.get("mqtt_client", None)
@@ -32,27 +32,28 @@ def update_firmware(**kwargs):
     latest_firmware = f"{LOCAL_FIRMWARE_FOLDER}/sixfab_pms_firmware_{latest_version}.bin"
 
     try:
-        current_firmware_version = try_until_get(api, "getFirmwareVer")
+        current_firmware_version = get_metric("version")
     except:
         send_status("error")
         return
-
-    if isinstance(current_firmware_version, str):
-        current_firmware_version = re.search("v([0-9]*.[0-9]*.[0-9]*)", current_firmware_version)[1]
-    elif isinstance(current_firmware_version, bytearray) or isinstance(current_firmware_version, bytes):
-        current_firmware_version = current_firmware_version.decode().replace("v", "")
 
     #if current_firmware_version == latest_version[1:]:
     #    send_status("finish")
     #    return
 
+    if not lock_distribution_service():
+        send_status("error")
+        return
+
     if not os.path.exists(latest_firmware):
         send_status("firmware_not_exists")
         return
 
+    hat_api = SixfabPower()
+
     try:
         last_step_cache = 0
-        for step in api.updateFirmware(latest_firmware):
+        for step in hat_api.update_firmware(latest_firmware):
             if last_step_cache < 100 and step-last_step_cache > 2 :
                 last_step_cache = step
                 send_status(step)
@@ -62,6 +63,8 @@ def update_firmware(**kwargs):
 
 
     send_status("finish")
+
+    release_distribution_service()
 
 
 
@@ -98,8 +101,10 @@ def update_agent(**kwargs):
                 && pip3 install .
     """.replace("\n", ""))
     
+    os.system("pip3 install -U sixfab-power-python-api")
+    
     send_status("restart")
 
-    os.system("sudo systemctl restart pms_agent")
+    os.system("sudo systemctl restart power_agent")
 
     send_status("finish")
