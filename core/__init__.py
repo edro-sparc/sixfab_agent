@@ -7,12 +7,13 @@ import subprocess
 import paho.mqtt.client as mqtt
 
 from uuid import uuid4
-from pms_api import SixfabPMS
 from typing import List
 from threading import Thread, Lock
 
 from .modules import *
 from .modules.set_configurations import update_timezone
+from .modules.proxy import run_signal
+from .modules import cloud_api
 
 from .helpers.configs import config_object_to_string
 from .helpers import network
@@ -32,7 +33,6 @@ class Agent(object):
         self.client = client
         self.token = token
         self.configs = configs
-        self.PMSAPI = SixfabPMS()
         self.is_connected = False
 
         self.lock_thread = Lock()
@@ -51,9 +51,6 @@ class Agent(object):
         client.on_message = self.__on_message
         client.on_disconnect = self.__on_disconnect
         client.on_log = self.__on_log
-
-    def reinit_api(self):
-        self.PMSAPI = SixfabPMS()
 
     def loop(self):
         ping_addr = "power.sixfab.com"
@@ -105,9 +102,7 @@ class Agent(object):
                     self.client.publish(
                         "/device/{token}/feed".format(token=self.token),
                         json.dumps(
-                            read_data(
-                                self.PMSAPI, agent_version=self.configs["version"]
-                            )
+                            read_data(agent_version=self.configs["version"])
                         ),
                     )
                 logger.debug("[FEEDER] Done, releasing setters")
@@ -120,9 +115,9 @@ class Agent(object):
         while True:
             with self.lock_thread:
                 try:
-                    self.PMSAPI.softPowerOff()
-                    self.PMSAPI.softReboot()
-                    self.PMSAPI.sendSystemTemp()
+                    run_signal("soft_shutdown")
+                    run_signal("soft_reboot")
+                    run_signal("system_temperature")
                 except Exception as e:
                     logger.debug("[ROUTINE WORKER] Error occured, trying again in 15secs")
                 else:
@@ -159,7 +154,7 @@ class Agent(object):
 
                 with self.lock_thread:
                     logger.debug("Setting RTC timezone to " + timezone)
-                    update_timezone(self.PMSAPI, timezone)
+                    update_timezone(timezone)
 
                 return True
             logger.debug("Waiting for NTP synchronization")
@@ -168,7 +163,6 @@ class Agent(object):
     def _lock_feeder_for_firmware_update(self):
         with self.lock_thread:
             update_firmware(
-                api=self.PMSAPI,
                 repository=self.configs["firmware_update_repository"],
                 mqtt_client=self.client,
                 token=self.token,
@@ -180,7 +174,7 @@ class Agent(object):
     def __on_message(self, client, userdata, msg):
         message = json.loads(msg.payload.decode())
         command = message.get("command", None)
-        commandID = message.get("commandID", None)
+        command_id = message.get("id", None)
         command_data = message.get("data", {})
 
         if "connected" in message:
@@ -209,13 +203,13 @@ class Agent(object):
 
                 with self.lock_thread:
                     is_configured = set_configurations(
-                        self.PMSAPI, command_data, configs=self.configs
+                        command_data, configs=self.configs
                     )
 
                     if is_configured:
                         response = json.dumps({
+                            "id": command_id,
                             "command": "update_status_configurations",
-                            "commandID": commandID,
                             "response": {"updated": True},
                         })
 
@@ -255,11 +249,27 @@ class Agent(object):
                 Thread(target=self._wait_ntp_and_update_rtc,
                        args=(command_data["timezone"],)).start()
 
+        elif command == "rpc":
+            response = cloud_api.handler(command_data)
+
+            response = json.dumps({
+                            "id": command_id,
+                            "command": "rpc",
+                            "response": {
+                                "data": response
+                            },
+                        })
+
+            self.client.publish(
+                            "/device/{userdata}/hive".format(
+                                userdata=userdata), response
+                        )
+
         else:
             response = json.dumps(
                 {
+                    "id": command_id,
                     "command": command,
-                    "commandID": commandID,
                     "response": "Invalid command",
                 }
             )

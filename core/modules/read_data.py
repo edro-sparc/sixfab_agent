@@ -4,32 +4,22 @@ import time
 import logging
 
 from subprocess import check_output
-from pms_api import SixfabPMS
+from requests import get
+from .consts import DISTRIBUTION_SERVICE
+from .proxy import get_metric_by_sensor, run_signal, get_metric
 
-from .recovery import try_until_get
-
-def read_data(api, **kwargs):
+def read_data(**kwargs):
     def fan_health():
-        response = try_until_get(api, "getFanHealth")
-        responses = {0: None, 1: True, 2: False}
+        response = get_metric_by_sensor("fan", "health", default=0)
 
-        return responses[response]
+        return {0: None, 1: True, 2: False}[response]
 
     def watchdog_signal():
-        response = try_until_get(api, "askWatchdogAlarm")
-        responses = {0: None, 1: True, 2: False}
-
-        return responses[response]
+        response = run_signal("watchdog_alarm", default=None)
+        return response
 
     def firmware_version():
-        get_from_hat = try_until_get(api, "getFirmwareVer")
-
-        if isinstance(get_from_hat, str):
-            return re.search("v([0-9]*.[0-9]*.[0-9]*)", get_from_hat)[1]
-        elif isinstance(get_from_hat, bytearray) or isinstance(get_from_hat, bytes):
-            return get_from_hat.decode().replace("v", "")
-        else:
-            return '0.0.0'
+        return get_metric("version", "0.0.0")
 
     def get_api_version():
         api_version_file_path = "/opt/sixfab/pms/api/setup.py"
@@ -45,10 +35,11 @@ def read_data(api, **kwargs):
                         line.split("=")[1]
                         .replace(",", "")
                         .replace("'", "")
+                        .replace("\"", "")
                     )
 
         return '0.0.0'
-
+    
     return {
     "ts": time.time(),
     "data": "{firmware_version},{agent_version},{api_version}|{fan_health},{watchdog}|{working_status},{charge_status},{battery_health},{fanspeed},{input_temperature},{input_voltage},{input_current},{input_power},{system_temperature},{system_voltage},{system_current},{system_power},{battery_temperature},{battery_voltage},{battery_current},{battery_power}".format(
@@ -59,24 +50,28 @@ def read_data(api, **kwargs):
         fan_health="T" if fan_health() else "F",
         watchdog="T" if watchdog_signal() else "F",
 
-        working_status=try_until_get(api, "getWorkingMode"),
-        charge_status=try_until_get(api, "getBatteryLevel"),
-        battery_health=try_until_get(api, "getBatteryHealth"),
-        fanspeed=try_until_get(api, "getFanSpeed"),
+        working_status={
+            "charging": 1,
+            "fully_charged": 2,
+            "battery_powered": 3 
+        }[get_metric("working_mode")],
+        charge_status=get_metric_by_sensor("battery", "level"),
+        battery_health=get_metric_by_sensor("battery", "health"),
+        fanspeed=get_metric_by_sensor("fan", "speed"),
 
-        input_temperature=try_until_get(api, "getInputTemp"),
-        input_voltage=try_until_get(api, "getInputVoltage"),
-        input_current=try_until_get(api, "getInputCurrent"),
-        input_power=try_until_get(api, "getInputPower"),
+        input_temperature=get_metric_by_sensor("input", "temperature"),
+        input_voltage=get_metric_by_sensor("input", "voltage"),
+        input_current=get_metric_by_sensor("input", "current"),
+        input_power=get_metric_by_sensor("input", "power"),
 
-        system_temperature=try_until_get(api, "getSystemTemp"),
-        system_voltage=try_until_get(api, "getSystemVoltage"),
-        system_current=try_until_get(api, "getSystemCurrent"),
-        system_power=try_until_get(api, "getSystemPower"),
+        system_temperature=get_metric_by_sensor("system", "temperature"),
+        system_voltage=get_metric_by_sensor("system", "voltage"),
+        system_current=get_metric_by_sensor("system", "current"),
+        system_power=get_metric_by_sensor("system", "power"),
 
-        battery_temperature=try_until_get(api, "getBatteryTemp"),
-        battery_voltage=try_until_get(api, "getBatteryVoltage"),
-        battery_current=try_until_get(api, "getBatteryCurrent"),
-        battery_power=try_until_get(api, "getBatteryPower"),
+        battery_temperature=get_metric_by_sensor("battery", "temperature"),
+        battery_voltage=get_metric_by_sensor("battery", "voltage"),
+        battery_current=get_metric_by_sensor("battery", "current"),
+        battery_power=get_metric_by_sensor("battery", "power"),
         )
     }
