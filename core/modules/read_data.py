@@ -36,6 +36,7 @@ def read_data(**kwargs):
                         .replace(",", "")
                         .replace("'", "")
                         .replace("\"", "")
+                        .replace(")", "")
                     )
 
         return '0.0.0'
