@@ -45,6 +45,11 @@ def read_data(api, **kwargs):
                         line.split("=")[1]
                         .replace(",", "")
                         .replace("'", "")
+<<<<<<< Updated upstream
+=======
+                        .replace("\"", "")
+                        .replace(")", "")
+>>>>>>> Stashed changes
                     )
 
         return '0.0.0'
