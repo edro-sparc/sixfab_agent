@@ -115,8 +115,8 @@ class Agent(object):
         while True:
             with self.lock_thread:
                 try:
-                    run_signal("soft_shutdown")
-                    run_signal("soft_reboot")
+                    # run_signal("soft_shutdown")
+                    # run_signal("soft_reboot")
                     run_signal("system_temperature")
                 except Exception as e:
                     logger.debug("[ROUTINE WORKER] Error occured, trying again in 15secs")
